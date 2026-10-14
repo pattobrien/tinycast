@@ -214,7 +214,8 @@ final class RoomCoordinator {
         if paletteCoordinator.isVisible { paletteCoordinator.hidePalette(restoreFocus: false) }
         let context = RoomRunner.Context(
             gap: gap, displayUUID: targetDisplayUUID,
-            claimed: store.claimedWindowIDs(excluding: room.id), minimums: minimums, ledger: ledger)
+            claimed: store.claimedWindowIDs(excluding: room.id), minimums: minimums, ledger: ledger,
+            runsResolvers: settings.windowRoomResolversEnabled)
         inTurn { [weak self] in
             let outcome = await RoomRunner.enter(room, context: context)
             guard let self else { return }
@@ -227,6 +228,24 @@ final class RoomCoordinator {
                 self.store.markEntered(id: room.id, at: Date())
             }
             await self.report(outcome, for: room)
+        }
+    }
+
+    func setResolversEnabled(_ enabled: Bool) {
+        guard enabled != settings.windowRoomResolversEnabled else { return }
+        guard enabled else {
+            settings.windowRoomResolversEnabled = false
+            return
+        }
+        Task {
+            guard
+                await core.confirm(
+                    title: "Let rooms run shell commands?",
+                    message: "Entering a room will run the resolve command of each of its windows.",
+                    symbol: "terminal", confirmTitle: "Turn On", tone: .neutral,
+                    confirmRole: .standard)
+            else { return }
+            settings.windowRoomResolversEnabled = true
         }
     }
 
@@ -546,9 +565,14 @@ final class RoomCoordinator {
             return
         }
         let missing = Set(outcome.missing).sorted()
-        guard !missing.isEmpty else { return }
-        core.showMessage(
-            "\(room.name) — \(missing.joined(separator: ", ")) not open", tone: .neutral)
+        var clauses: [String] = []
+        if !missing.isEmpty { clauses.append("\(missing.joined(separator: ", ")) not open") }
+        if !outcome.unresolved.isEmpty {
+            clauses.append("\(outcome.unresolved.joined(separator: ", ")) not resolved")
+        }
+        if outcome.resolversSkipped { clauses.append("resolvers are off in Settings") }
+        guard !clauses.isEmpty else { return }
+        core.showMessage("\(room.name) — \(clauses.joined(separator: "; "))", tone: .neutral)
     }
 
     private func reportPermissionFailure() async {

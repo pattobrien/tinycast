@@ -588,6 +588,13 @@ final class AppSettings {
         }
     }
 
+    /// Consent to run each room window's resolve command; only the Rooms section turns it on.
+    var windowRoomResolversEnabled: Bool {
+        didSet {
+            defaults.set(windowRoomResolversEnabled, forKey: Key.windowRoomResolversEnabled.rawValue)
+        }
+    }
+
     /// What re-triggering a half does: nothing, step its size, or walk it across the displays.
     var windowCycle: WindowCycle {
         didSet { defaults.set(windowCycle.rawValue, forKey: Key.windowCycle.rawValue) }
@@ -839,6 +846,7 @@ final class AppSettings {
         windowRoomsShowInLauncher =
             defaults.object(forKey: Key.windowRoomsShowInLauncher.rawValue) == nil
             || defaults.bool(forKey: Key.windowRoomsShowInLauncher.rawValue)
+        windowRoomResolversEnabled = defaults.bool(forKey: Key.windowRoomResolversEnabled.rawValue)
         quicklinksEnabled = defaults.bool(forKey: Key.quicklinksEnabled.rawValue)
         quicklinksShowInLauncher =
             defaults.object(forKey: Key.quicklinksShowInLauncher.rawValue) == nil

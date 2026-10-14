@@ -23,6 +23,8 @@ enum RoomRunner {
     /// Slack for an app's own rounding, such as a terminal sizing in whole cells.
     private static let slack: CGFloat = 4
     private static let resizeSlack: CGFloat = 16
+    /// A resolver may focus a workspace first, but a stuck one must not hold the room.
+    nonisolated private static let resolverTimeout = Duration.seconds(3)
 
     struct Context {
         let gap: CGFloat
@@ -31,6 +33,7 @@ enum RoomRunner {
         let claimed: Set<UInt32>
         let minimums: RoomMinimumSizeStore
         let ledger: RoomParkingLedger
+        let runsResolvers: Bool
     }
 
     struct Outcome: Sendable {
@@ -39,20 +42,35 @@ enum RoomRunner {
         /// The apps this pass hid, so only they come back later, never one hidden by hand.
         var hiddenApps = Set<pid_t>()
         var missing: [String] = []
+        /// The windows whose resolver named no window; each was matched as if it had none.
+        var unresolved: [String] = []
+        var resolversSkipped = false
         var isBlockedOnPermission = false
     }
 
     // MARK: - Entering
 
-    static func enter(_ room: Room, context: Context) async -> Outcome {
+    static func enter(_ saved: Room, context: Context) async -> Outcome {
         guard Permissions.ensureAccessibility() else { return Outcome(isBlockedOnPermission: true) }
+        var outcome = Outcome()
+        var resolved: [Int: UInt32] = [:]
+        if context.runsResolvers {
+            let resolution = await resolve(saved)
+            resolved = resolution.windowIDs
+            outcome.unresolved = resolution.failed.map { saved.windows[$0].displayName }
+        } else {
+            outcome.resolversSkipped = saved.windows.contains { $0.resolve != nil }
+        }
+        guard !Task.isCancelled else { return outcome }
+        let room = saved.resolving(resolved)
+
         let apps = appsInOrder(of: room)
         let launched = launchMissing(apps)
         let unhidden = unhide(apps)
         await wait(for: unhideDeadline, every: unhidePoll) { unhidden.allSatisfy { !$0.isHidden } }
 
         var snapshot = RoomWindowSweep.snapshot()
-        guard var plan = makePlan(room, in: snapshot, context: context) else { return Outcome() }
+        guard var plan = makePlan(room, in: snapshot, context: context) else { return outcome }
         let late = launched.union(unhidden.compactMap(\.bundleIdentifier))
         if !late.isEmpty {
             await wait(for: launched.isEmpty ? unhideDeadline : launchDeadline, every: launchPoll) {
@@ -63,9 +81,9 @@ enum RoomRunner {
                 return false
             }
         }
-        let missing = plan.missing.map { room.windows[$0].appName }
+        outcome.missing = plan.missing.map { room.windows[$0].appName }
         // With nothing to show, stepping everything back would leave an empty desk.
-        guard !Task.isCancelled, !plan.placements.isEmpty else { return Outcome(missing: missing) }
+        guard !Task.isCancelled, !plan.placements.isEmpty else { return outcome }
 
         place(plan.placements, in: snapshot)
         for _ in 0..<relayoutPasses {
@@ -77,7 +95,7 @@ enum RoomRunner {
             place(plan.placements, in: snapshot)
         }
 
-        var outcome = Outcome(placed: plan.placements.count, missing: missing)
+        outcome.placed = plan.placements.count
         outcome.parked = park(plan, in: snapshot, ledger: context.ledger)
         returnWindowsOfHiddenApps(plan, in: snapshot, ledger: context.ledger)
         await raise(plan, in: snapshot)
@@ -114,6 +132,40 @@ enum RoomRunner {
         ledger.keepOnly(
             bundleIDs: Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier)))
         return returned.count
+    }
+
+    // MARK: - Resolving
+
+    private static func resolve(_ room: Room) async -> (windowIDs: [Int: UInt32], failed: [Int]) {
+        await withTaskGroup(of: (Int, Result<UInt32, RoomWindowResolver.Failure>).self) { group in
+            for (index, window) in room.windows.enumerated() {
+                guard let command = window.resolve else { continue }
+                group.addTask {
+                    let result = await ShellCommandRunner.run(command, timeout: resolverTimeout)
+                    return (index, windowID(from: result))
+                }
+            }
+            var windowIDs: [Int: UInt32] = [:]
+            var failed: [Int] = []
+            for await (index, result) in group {
+                switch result {
+                case .success(let id): windowIDs[index] = id
+                case .failure: failed.append(index)
+                }
+            }
+            return (windowIDs, failed.sorted())
+        }
+    }
+
+    nonisolated private static func windowID(
+        from result: ShellCommandResult
+    ) -> Result<UInt32, RoomWindowResolver.Failure> {
+        switch result.termination {
+        case .exited(let status):
+            RoomWindowResolver.windowID(status: status, output: result.standardOutput)
+        case .timedOut, .stopped: .failure(.timedOut)
+        case .launchFailed: .failure(.couldNotStart)
+        }
     }
 
     // MARK: - Planning

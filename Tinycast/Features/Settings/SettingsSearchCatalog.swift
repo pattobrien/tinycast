@@ -475,6 +475,9 @@ enum SettingsSearchCatalog {
             .windowManagementRooms, "Show rooms in launcher",
             keywords: ["hide", "visibility", "search"]),
         .init(
+            .windowManagementRooms, "Run window resolvers",
+            keywords: ["resolve", "shell", "command", "script", "window id", "herdr"]),
+        .init(
             .windowManagementRooms, "New Room",
             keywords: ["add", "create", "project", "windows"]),
         .init(

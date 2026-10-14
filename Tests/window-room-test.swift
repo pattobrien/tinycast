@@ -124,6 +124,7 @@ struct WindowRoomTests {
         arrangementReading()
         learning()
         windowMatching()
+        resolving()
         parking()
         planning()
         layoutChoices()
@@ -597,6 +598,47 @@ struct WindowRoomTests {
         expect(RoomWindowMatcher.isSimilar("Café Notes", "cafe notes"), "case and accents fold")
         expect(!RoomWindowMatcher.isSimilar("abc", "abc"), "very short titles are never similar")
         expect(!RoomWindowMatcher.isSimilar("Inbox", "Calendar"), "different titles are not similar")
+    }
+
+    // MARK: - Resolving
+
+    static func resolving() {
+        let cases: [(Int32, String?, Result<UInt32, RoomWindowResolver.Failure>)] = [
+            (0, "4242\n", .success(4242)),
+            (0, "  4242  \nextra", .success(4242)),
+            (0, "", .failure(.emptyOutput)),
+            (0, nil, .failure(.emptyOutput)),
+            (0, "abc", .failure(.unparsableOutput)),
+            (0, "0", .failure(.unparsableOutput)),
+            (0, "99999999999", .failure(.unparsableOutput)),
+            (0, "-7", .failure(.unparsableOutput)),
+            (3, "4242", .failure(.exited(status: 3)))
+        ]
+        for (status, output, expected) in cases {
+            expect(
+                RoomWindowResolver.windowID(status: status, output: output) == expected,
+                "status \(status) with \(output.map { "“\($0)”" } ?? "no output") reads as \(expected)")
+        }
+
+        let room = Room(
+            name: "Terminals",
+            windows: [
+                window("terminal", title: "build"), window("terminal", title: "logs", id: 12),
+                window("browser", title: "Docs")
+            ])
+        let windows = [
+            live(0, "terminal", title: "build", id: 11), live(1, "terminal", title: "logs", id: 12),
+            live(2, "browser", title: "Docs", id: 20)
+        ]
+        let resolved = room.resolving([0: 12, 2: 99])
+        expect(
+            resolved.windows.map(\.windowID) == [12, nil, 99],
+            "a resolved number replaces the stored one, and no other window keeps it")
+        expect(room.windows[0].windowID == nil, "the saved room is left as it was")
+        let plan = RoomPlan.make(resolved, windows: windows, on: screen(area), gap: gap, minimums: [:])
+        expect(
+            plan.placements.map(\.handle) == [1, 0, 2],
+            "the resolved window wins over an exact title, and a number nobody has falls back to title")
     }
 
     // MARK: - Parking

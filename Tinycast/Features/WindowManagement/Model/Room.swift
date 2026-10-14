@@ -44,6 +44,20 @@ struct Room: Codable, Hashable, Identifiable, Sendable {
         return room
     }
 
+    /// This room for one entry: a resolved window holds its number, and no other window claims it.
+    func resolving(_ windowIDs: [Int: UInt32]) -> Room {
+        var room = self
+        let resolved = Set(windowIDs.values)
+        for index in room.windows.indices {
+            if let id = windowIDs[index] {
+                room.windows[index].windowID = id
+            } else if let id = room.windows[index].windowID, resolved.contains(id) {
+                room.windows[index].windowID = nil
+            }
+        }
+        return room
+    }
+
     var summary: String { windows.count == 1 ? "1 window" : "\(windows.count) windows" }
 
     var entryID: String { Self.entryIDPrefix + id.uuidString.lowercased() }

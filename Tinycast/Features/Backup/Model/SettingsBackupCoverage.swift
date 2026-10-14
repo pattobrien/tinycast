@@ -178,6 +178,9 @@ enum SettingsBackupCoverage {
             "Names a folder on this Mac; the one a backup lands on may not have it.",
         AppSettingsKey.notesFolder.rawValue:
             "Names a folder on this Mac; the one a backup lands on may not have it.",
+        AppSettingsKey.windowRoomResolversEnabled.rawValue:
+            "Lets entering a room run the shell commands its windows name, and a flag that grants "
+            + "a capability is never carried by a backup.",
         AppSettingsKey.settingsFileEnabled.rawValue:
             "Lets a file on this Mac change its settings; an import must not hand that to another."
     ]
