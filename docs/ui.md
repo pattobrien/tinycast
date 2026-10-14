@@ -84,7 +84,7 @@ literal, so `Theme` stays the one place a number is written down:
 **Micro** is the dense palette, close to VS Code's Command Palette. A plain smaller multiplier would
 shrink body text to about 9pt, so Micro keeps `textScale` at 1 (Theme's text styles verbatim), states its
 chrome outright from `Theme.Micro` (a 13pt search field, a 28pt header, 16pt row icons, 3pt row padding
-for a 22pt row pitch, 3pt row and 12pt panel corners, a 32pt bottom bar), and scales the remaining
+for a 22pt row pitch, 3pt row and 12pt panel corners, a 40pt bottom bar), and scales the remaining
 geometry by `Theme.Micro.scale` (0.8).
 
 **In any view a scaled surface can reach, read `@Environment(\.metrics)` rather than

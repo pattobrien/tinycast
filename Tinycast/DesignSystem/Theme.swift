@@ -41,7 +41,7 @@ enum Theme {
         static let rowVertical: CGFloat = 3
         static let rowRadius: CGFloat = 3
         static let panelRadius: CGFloat = 12
-        static let bottomBarHeight: CGFloat = 32
+        static let bottomBarHeight: CGFloat = 40
     }
 
     enum Radius {
