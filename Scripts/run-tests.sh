@@ -613,6 +613,8 @@ run ext-image-size-test   $E/Model/ExtensionImageSize.swift
 run ext-accessory-test     $E/Model/RenderNode.swift \
                            $E/Model/ExtensionPickerItem.swift \
                            $E/Model/ExtensionSearchAccessory.swift \
+                           $E/Model/ExtensionSearchContract.swift \
+                           $L/SearchRelevance.swift \
                            $E/Service/ExtensionStorage.swift
 run slow ext-test          -parse-as-library \
                            Tests/ext-menu-bar-test.swift \
@@ -644,6 +646,7 @@ run slow ext-test          -parse-as-library \
                            $E/Model/RenderNode.swift \
                            $E/Model/ExtensionPickerItem.swift \
                            $E/Model/ExtensionSearchAccessory.swift \
+                           $E/Model/ExtensionSearchContract.swift \
                            $E/Service/ExtensionCatalog.swift \
                            $E/Service/ExtensionFetcher.swift \
                            Tinycast/Platform/ProcessExit.swift \

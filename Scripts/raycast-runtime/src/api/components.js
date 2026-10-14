@@ -141,8 +141,6 @@ function useThrottledSearch(props) {
 function List(props) {
   const rest = omit(props, ["children", "actions", "searchBarAccessory"]);
   rest.onSearchTextChange = useThrottledSearch(props);
-  // Raycast filters client-side unless the extension takes over the search text.
-  if (rest.filtering === undefined) rest.filtering = props.onSearchTextChange === undefined;
   return h(
     "List",
     rest,
@@ -201,7 +199,6 @@ List.Dropdown = makeSearchDropdown("List.Dropdown");
 function Grid(props) {
   const rest = omit(props, ["children", "actions", "searchBarAccessory"]);
   rest.onSearchTextChange = useThrottledSearch(props);
-  if (rest.filtering === undefined) rest.filtering = props.onSearchTextChange === undefined;
   return h(
     "Grid",
     rest,
@@ -311,7 +308,10 @@ Form.Separator = Section("Form.Separator");
 Form.Description = Section("Form.Description");
 Form.LinkAccessory = Section("Form.LinkAccessory");
 // A form dropdown is a value-carrying field, unlike the search-bar dropdowns above.
-Form.Dropdown = makeField("Form.Dropdown", "");
+const DropdownField = makeField("Form.Dropdown", "");
+Form.Dropdown = function Dropdown(props) {
+  return DropdownField({ ...props, onSearchTextChange: useThrottledSearch(props) });
+};
 Form.Dropdown.Item = Section("Form.Dropdown.Item");
 Form.Dropdown.Section = Section("Form.Dropdown.Section");
 // The deprecated flat aliases (`Form.DropdownItem`, …) still appear in shipped bundles.

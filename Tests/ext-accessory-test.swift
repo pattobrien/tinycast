@@ -37,6 +37,8 @@ struct ExtensionSearchAccessoryTests {
     static func main() {
         parsing()
         seeding()
+        searchContract()
+        pickerChosen()
         storageIsolation()
         print(failures == 0 ? "\nALL PASSED" : "\n\(failures) FAILED")
         print("\(passes) passed, \(failures) failed")
@@ -151,6 +153,77 @@ struct ExtensionSearchAccessoryTests {
                         "id":9,"type":"List.Dropdown","props":{},"children":[]}},"children":[]}
                     """
                 ).node("searchBarAccessory"))?.initialValue(stored: nil) == nil)
+    }
+
+    static func contract(_ props: String) -> ExtensionSearchContract {
+        ExtensionSearchContract(
+            node: node(#"{"id":7,"type":"Form.Dropdown","props":{\#(props)},"children":[]}"#))
+    }
+
+    static func admitted(_ contract: ExtensionSearchContract, _ query: String) -> [String] {
+        let filter = contract.filter(for: query)
+        return ["Apple", "Banana", "Cherry"].filter { filter.admits([$0]) }
+    }
+
+    /// Raycast's `SearchBarInterface` defaults, the same for a dropdown as for a List.
+    static func searchContract() {
+        let handler = #""onSearchTextChange":{"$fn":"7:onSearchTextChange"}"#
+        let bare = contract("")
+        check("no handler filters locally", bare.filtersLocally == true)
+        check("no handler names none", bare.textHandler == nil)
+        check("isLoading defaults to false", bare.isLoading == false)
+
+        let searched = contract(handler)
+        check("a handler turns local filtering off", searched.filtersLocally == false)
+        check(
+            "the handler is kept", searched.textHandler == "7:onSearchTextChange",
+            searched.textHandler ?? "nil")
+        check(
+            "filtering: true filters beside a handler",
+            contract(handler + #","filtering":true"#).filtersLocally == true)
+        check(
+            "the object form counts as filtering",
+            contract(handler + #","filtering":{"keepSectionOrder":false}"#).filtersLocally == true)
+        check(
+            "filtering: false holds without a handler",
+            contract(#""filtering":false"#).filtersLocally == false)
+        check("isLoading is read", contract(#""isLoading":true"#).isLoading == true)
+        check(
+            "the inert contract filters nothing",
+            ExtensionSearchContract.inert.filtersLocally == false)
+
+        check(
+            "a local query narrows", admitted(bare, " ban ") == ["Banana"],
+            "\(admitted(bare, " ban "))")
+        check(
+            "a blank query admits every choice",
+            admitted(bare, "   ") == ["Apple", "Banana", "Cherry"])
+        check(
+            "an extension-owned query admits every choice",
+            admitted(searched, "ban") == ["Apple", "Banana", "Cherry"])
+        check("a query nothing matches admits none", admitted(bare, "zzz") == [])
+    }
+
+    /// What a closed picker reads once a search has replaced the choices under its value.
+    static func pickerChosen() {
+        let alice = ExtensionPickerItem(value: "alice", title: "Alice")
+        let bob = ExtensionPickerItem(value: "bob", title: "Bob")
+        func titles(_ values: [String], remembered: [ExtensionPickerItem]) -> [String] {
+            ExtensionPickerItem.chosen(values, in: [alice], remembered: remembered).map(\.title)
+        }
+        check("a live choice resolves", titles(["alice"], remembered: []) == ["Alice"])
+        check(
+            "a choice the search dropped keeps its title",
+            titles(["bob"], remembered: [bob]) == ["Bob"])
+        check(
+            "the live choice wins over a remembered one",
+            titles(["alice"], remembered: [ExtensionPickerItem(value: "alice", title: "Old")])
+                == ["Alice"])
+        check("an unknown value reads as itself", titles(["zed"], remembered: []) == ["zed"])
+        check(
+            "several values keep their order",
+            titles(["bob", "alice"], remembered: [bob]) == ["Bob", "Alice"])
+        check("nothing chosen resolves to nothing", titles([], remembered: [bob]) == [])
     }
 
     static func storageIsolation() {

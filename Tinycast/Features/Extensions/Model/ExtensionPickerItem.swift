@@ -29,4 +29,14 @@ struct ExtensionPickerItem: Identifiable, Equatable {
         walk(node, section: nil)
         return items
     }
+
+    /// What `values` name: the live choices, then the ones last resolved, then the raw value.
+    static func chosen(
+        _ values: [String], in items: [ExtensionPickerItem], remembered: [ExtensionPickerItem]
+    ) -> [ExtensionPickerItem] {
+        values.map { value in
+            items.first { $0.value == value } ?? remembered.first { $0.value == value }
+                ?? ExtensionPickerItem(value: value, title: value)
+        }
+    }
 }

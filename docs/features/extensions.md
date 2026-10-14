@@ -137,6 +137,7 @@ Two host-call flavours:
 | `Model/ExtensionRefreshPolicy.swift`          | background-refresh decisions: interval parsing, due dates, backoff                                         |
 | `Model/ExtensionLaunchType.swift`             | `userInitiated` / `background`, mirroring `@raycast/api` `LaunchType`                                      |
 | `Model/RenderNode.swift`                      | the decoded render tree (`RenderTree` / `RenderNode` / `RenderValue`)                                      |
+| `Model/ExtensionSearchContract.swift`         | Raycast's `SearchBarInterface` for a `List` or `Grid` root and a `Form.Dropdown`, and its local filter     |
 | `Model/ExtensionAppearance.swift`             | the per-extension icon override and its tint palette                                                       |
 | `Service/ExtensionAppearanceStore.swift`      | where those overrides persist                                                                              |
 | `Service/SymbolCatalog.swift`                 | the SF Symbol list read from `CoreGlyphs.bundle`                                                           |
@@ -232,13 +233,16 @@ and [Background Refresh](https://developers.raycast.com/information/lifecycle/ba
 the palette relies on maps 1:1 onto visible rows — the same invariant the launcher, clipboard and emoji
 screens hold (see [palette.md](palette.md)).
 
-- **List / Grid** — sections and items flattened in render order. When `filtering` is on (Raycast's
-  default unless the command supplies `onSearchTextChange`) rows are filtered with the launcher's own
-  `FuzzyMatch` over title, subtitle and keywords, and a section whose items all drop loses its header
-  too. `isShowingDetail` splits the screen into rows plus a detail pane and drops each row's
-  subtitle, but **not its accessories**: the API only advises an extension against sending them in
-  this mode, and Raycast draws the ones it is sent, so suppressing them here would lose a row its
-  whole signal. As in Raycast, they keep their full width and the title is what truncates.
+- **List / Grid** — sections and items flattened in render order. `ExtensionSearchContract` reads
+  Raycast's `SearchBarInterface` once per root: `filtering` is on unless the command supplies
+  `onSearchTextChange`, and its `{ keepSectionOrder }` form counts as on. Swift decides that
+  default; the runtime only applies `throttle`. Filtered rows match the launcher's own `FuzzyMatch`
+  over title, subtitle and keywords, sections keep their declared order, and a section whose items
+  all drop loses its header too. `isShowingDetail` splits the screen into rows plus a detail pane
+  and drops each row's subtitle, but **not its accessories**: the API only advises an extension
+  against sending them in this mode, and Raycast draws the ones it is sent, so suppressing them
+  here would lose a row its whole signal. As in Raycast, they keep their full width and the title
+  is what truncates.
   `ExtensionScreen.Item`
   carries both the flat `selection` index and the scroll id, and is the `ForEach` identity of the row
   and the grid cell alike — see the scroll-id rule in [ui.md](../ui.md#rows-selection-hover).
@@ -348,6 +352,13 @@ screens hold (see [palette.md](palette.md)).
   row titles, icons, sections and date details refresh an open panel even when row IDs stay the same.
   Its metrics are restated in `ExtensionFormMetrics` rather than read off the panel: an extension's
   surfaces own their own, and a launcher change must never move a form.
+
+  **A `Form.Dropdown` takes the same search contract as a `List`.** `ExtensionSearchContract` reads
+  its `filtering`, `onSearchTextChange` and `isLoading`; with a handler the typed query goes to the
+  extension, throttled by the runtime when `throttle` is set, and its returned children are the
+  choices. The chosen value keeps its title while a search has dropped it from the children, and an
+  unknown value shows itself. `isLoading` draws a spinner beside the open control's chevron and an
+  empty list reads "Loading…". The field's `placeholder` is the open control's search prompt.
 
   **The query is typed into the control, not into the list.** The one field editor belongs to the
   palette's search field, so a picker draws its own caret (`ExtensionCaret`) and renders what has

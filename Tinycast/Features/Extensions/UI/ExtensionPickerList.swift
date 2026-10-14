@@ -13,6 +13,7 @@ struct ExtensionPickerList: View {
     let selection: Int
     let chosen: Set<String>
     let assetsPath: String?
+    var isLoading = false
     /// Fixed, never intrinsic, so the list cannot jitter as its rows change. A form's picker
     /// matches the field above it; a header dropdown hangs off a chip and drops narrower.
     var width: CGFloat?
@@ -44,7 +45,7 @@ struct ExtensionPickerList: View {
     @ViewBuilder
     private var list: some View {
         if items.isEmpty {
-            Text(searchPlaceholder == nil ? "No matches" : "No Results")
+            Text(emptyText)
                 .font(metrics.typography.menuRow)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)
@@ -94,6 +95,11 @@ struct ExtensionPickerList: View {
                 .onChange(of: selection, initial: true) { proxy.scrollTo(selection) }
             }
         }
+    }
+
+    private var emptyText: String {
+        if isLoading { return "Loading…" }
+        return searchPlaceholder == nil ? "No matches" : "No Results"
     }
 
     private func sectionHeader(_ title: String) -> some View {

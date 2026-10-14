@@ -397,12 +397,12 @@ struct RootPaletteView: View {
                 if vm.mode == .menuSearch { menuSearch.filter(vm.query) }
                 if vm.mode == .switchWindows { windowSwitch.filter(vm.query) }
                 // A command that took over the search text filters its own list.
-                if vm.mode == .extensionCommand, let handler = extensionScreen.searchTextHandler {
+                if vm.mode == .extensionCommand, let handler = extensionScreen.search.textHandler {
                     extensions.dispatch(handler: handler, arguments: [vm.query])
                 }
             }
             // Anything typed while the command was still starting predates its handler.
-            .onChange(of: extensionScreen.searchTextHandler) { previous, handler in
+            .onChange(of: extensionScreen.search.textHandler) { previous, handler in
                 guard previous == nil, let handler, !vm.query.isEmpty else { return }
                 extensions.dispatch(handler: handler, arguments: [vm.query])
             }

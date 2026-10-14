@@ -194,6 +194,8 @@ struct ExtensionTests {
         await bundledModuleChecks()
         await navigationSearchRuntimeChecks()
         await searchAccessoryRuntimeChecks()
+        await formDropdownSearchRuntimeChecks()
+        await searchFilteringDefaultRuntimeChecks()
         await nodeContractChecks()
         await bufferEventChecks()
         await webAssemblyChecks()
@@ -667,7 +669,7 @@ struct ExtensionTests {
         let list = ExtensionScreen(tree: tree(listJSON), query: "")
         check("kind is list", list.kind == .list)
         check("placeholder", list.searchPlaceholder == "Find…")
-        check("filters locally", list.filtersLocally)
+        check("filters locally", list.search.filtersLocally)
         check("selected item id", list.selectedItemID == "banana")
         check("selected item index", list.selectedItemIndex == 1)
         check(
@@ -711,9 +713,11 @@ struct ExtensionTests {
                 {"id":2,"type":"List","props":{"onSearchTextChange":{"$fn":"2:onSearchTextChange"}},"children":[
                   {"id":3,"type":"List.Item","props":{"title":"Apple"},"children":[]}]}
                 """), query: "zzz")
-        check("onSearchTextChange disables local filtering", controlled.filtersLocally == false)
+        check(
+            "onSearchTextChange disables local filtering",
+            controlled.search.filtersLocally == false)
         check("controlled rows survive a non-matching query", controlled.items.count == 1)
-        check("search handler exposed", controlled.searchTextHandler == "2:onSearchTextChange")
+        check("search handler exposed", controlled.search.textHandler == "2:onSearchTextChange")
 
         let keepOrder = ExtensionScreen(
             tree: tree(
@@ -723,7 +727,7 @@ struct ExtensionTests {
                   {"id":3,"type":"List.Item","props":{"title":"Apple"},"children":[]},
                   {"id":4,"type":"List.Item","props":{"title":"Banana"},"children":[]}]}
                 """), query: "ban")
-        check("an object `filtering` still filters", keepOrder.filtersLocally)
+        check("an object `filtering` still filters", keepOrder.search.filtersLocally)
         check(
             "and keeps only the match",
             keepOrder.items.map { $0.node.string("title") } == ["Banana"],
@@ -1545,6 +1549,180 @@ struct ExtensionTests {
                 ExtensionSearchAccessory(node: $0.activeRoot?.node("searchBarAccessory"))?.nodeID
             } == accessory.nodeID)
         await runtime.stop(session: "sAccessory")
+    }
+
+    static func field(_ tree: RenderTree?, _ id: String) -> RenderNode? {
+        tree?.activeRoot?.children.first { $0.string("id") == id }
+    }
+
+    static func description(_ tree: RenderTree?) -> String? {
+        tree?.activeRoot?.children.first { $0.type == "Form.Description" }?.string("text")
+    }
+
+    @MainActor
+    static func formDropdownSearchRuntimeChecks() async {
+        let (runtime, _, recorder) = makeRuntime()
+        defer { runtime.shutdown() }
+        do {
+            try await runtime.boot(
+                config: .current(supportDirectory: FileManager.default.temporaryDirectory))
+        } catch {
+            check("form dropdown runtime boots", false, error.localizedDescription)
+            return
+        }
+        let command = """
+            const { Form } = require("@raycast/api");
+            const React = require("react");
+            const h = React.createElement;
+            const fruits = ["Apple", "Banana", "Cherry"];
+            module.exports.default = function Command() {
+              const [text, setText] = React.useState("");
+              const [calls, setCalls] = React.useState(0);
+              const [typed, setTyped] = React.useState([]);
+              const items = fruits.filter((f) => f.toLowerCase().includes(text))
+                .map((f) => h(Form.Dropdown.Item, { key: f, value: f, title: f }));
+              return h(Form, null,
+                h(Form.Dropdown, { id: "throttled", title: "Throttled", throttle: true,
+                  isLoading: text === "b",
+                  onSearchTextChange: (t) => { setText(t); setCalls((c) => c + 1); } }, items),
+                h(Form.Dropdown, { id: "immediate", title: "Immediate",
+                  onSearchTextChange: (t) => setTyped((all) => [...all, t]) }, items),
+                h(Form.Dropdown, { id: "local", title: "Local" }, items),
+                h(Form.Description, { text: "calls=" + calls + " text=" + text + " typed=" + typed.join(",") }));
+            };
+            """
+        await runtime.start(
+            session: "formSearch", code: command,
+            file: URL(fileURLWithPath: "/tmp/form-dropdown-search.js"), mode: .view,
+            context: launchContext())
+        await settle(until: { field(recorder.trees.last, "throttled") != nil })
+
+        let first = recorder.trees.last
+        guard let throttled = field(first, "throttled").map(ExtensionSearchContract.init(node:)),
+            let throttledHandler = throttled.textHandler,
+            let immediateHandler = field(first, "immediate")
+                .flatMap({ ExtensionSearchContract(node: $0).textHandler }),
+            let local = field(first, "local").map(ExtensionSearchContract.init(node:))
+        else {
+            check("a searchable Form.Dropdown exposes its handler", false)
+            await runtime.stop(session: "formSearch")
+            return
+        }
+        check("a Form.Dropdown with a handler leaves filtering to it", !throttled.filtersLocally)
+        check("a Form.Dropdown without one filters locally", local.filtersLocally)
+        check("a plain Form.Dropdown has no handler", local.textHandler == nil)
+        check("isLoading starts false", !throttled.isLoading)
+
+        let clock = ContinuousClock()
+        for text in ["a", "ab", "b"] {
+            await runtime.dispatch(
+                session: "formSearch", handler: throttledHandler,
+                payload: ExtensionRuntime.jsonString(from: [text]))
+        }
+        let burstEnded = clock.now
+        await settle(50)
+        let early = description(recorder.trees.last)
+        check(
+            "throttle holds the call back while typing continues",
+            early == "calls=0 text= typed=" || clock.now - burstEnded >= .milliseconds(300),
+            early ?? "no description")
+
+        await settle(until: { description(recorder.trees.last)?.hasPrefix("calls=0") == false })
+        await settle(400)
+        let settled = recorder.trees.last
+        check(
+            "throttle delivers one call with the last text",
+            description(settled) == "calls=1 text=b typed=", description(settled) ?? "no description")
+        let reloaded = field(settled, "throttled")
+        check(
+            "the extension's own results replace the choices",
+            reloaded.map { ExtensionPickerItem.items(in: $0).map(\.title) } == ["Banana"])
+        check(
+            "isLoading reaches the dropdown",
+            reloaded.map { ExtensionSearchContract(node: $0).isLoading } == true)
+
+        for text in ["c", "ch", "che", "cher"] {
+            await runtime.dispatch(
+                session: "formSearch", handler: immediateHandler,
+                payload: ExtensionRuntime.jsonString(from: [text]))
+        }
+        await settle(until: {
+            description(recorder.trees.last)?.hasSuffix("typed=c,ch,che,cher") == true
+        })
+        await settle(400)
+        check(
+            "without throttle every keystroke is delivered, in order",
+            description(recorder.trees.last) == "calls=1 text=b typed=c,ch,che,cher",
+            description(recorder.trees.last) ?? "no description")
+        check(
+            "the form dropdown reports no runtime failures", recorder.failures.isEmpty,
+            recorder.failures.joined(separator: "\n"))
+        await runtime.stop(session: "formSearch")
+    }
+
+    /// Raycast's `filtering` default, decided in Swift for every root the runtime renders.
+    @MainActor
+    static func searchFilteringDefaultRuntimeChecks() async {
+        let (runtime, _, recorder) = makeRuntime()
+        defer { runtime.shutdown() }
+        do {
+            try await runtime.boot(
+                config: .current(supportDirectory: FileManager.default.temporaryDirectory))
+        } catch {
+            check("filtering runtime boots", false, error.localizedDescription)
+            return
+        }
+        let cases: [(label: String, root: String, filtersLocally: Bool)] = [
+            ("a List without a handler filters locally", "h(List, {}, item)", true),
+            (
+                "a List with a handler does not",
+                "h(List, { onSearchTextChange: () => {} }, item)", false
+            ),
+            (
+                "a List with a handler and filtering: true does",
+                "h(List, { filtering: true, onSearchTextChange: () => {} }, item)", true
+            ),
+            (
+                "a List with the object form does",
+                "h(List, { filtering: { keepSectionOrder: true }, onSearchTextChange() {} }, item)",
+                true
+            ),
+            ("a List with filtering: false does not", "h(List, { filtering: false }, item)", false),
+            ("a Grid without a handler filters locally", "h(Grid, {}, cell)", true),
+            (
+                "a Grid with a handler does not",
+                "h(Grid, { onSearchTextChange: () => {} }, cell)", false
+            ),
+        ]
+        for (index, entry) in cases.enumerated() {
+            let session = "filtering\(index)"
+            let command = """
+                const { List, Grid } = require("@raycast/api");
+                const h = require("react").createElement;
+                const item = h(List.Item, { title: "\(session)" });
+                const cell = h(Grid.Item, { title: "\(session)", content: "" });
+                module.exports.default = function Command() { return \(entry.root); };
+                """
+            func rendered() -> RenderNode? {
+                guard let root = recorder.trees.last?.activeRoot,
+                    root.children.first?.string("title") == session
+                else { return nil }
+                return root
+            }
+            await runtime.start(
+                session: session, code: command,
+                file: URL(fileURLWithPath: "/tmp/\(session).js"), mode: .view,
+                context: launchContext())
+            await settle(until: { rendered() != nil })
+            let search = rendered().map { ExtensionSearchContract(node: $0) }
+            check(
+                entry.label, search?.filtersLocally == entry.filtersLocally,
+                "\(String(describing: search))")
+            await runtime.stop(session: session)
+        }
+        check(
+            "the filtering roots report no runtime failures", recorder.failures.isEmpty,
+            recorder.failures.joined(separator: "\n"))
     }
 
     @MainActor
