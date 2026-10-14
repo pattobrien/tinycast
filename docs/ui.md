@@ -45,7 +45,7 @@ These are the things that quietly break the look if changed. Preserve them unles
 - **Don't use the native scroll edge effect.** Inside a transparent panel it renders a hard-bounded rectangle. Use `edgeDissolve()`, or a gradient `mask` where a surface owns its own fade — `scrollEdgeEffectStyle` draws a *material* where a scroll view meets a safe area, so over a panel that already has `panelScrim` + `GlassEffectView` it composites to nothing. Tried and rejected on `QuickActionResultView`, with and without `safeAreaBar`. This is a rule about the borderless panels; the Settings window is a titled `NSWindow` whose system titlebar draws the band itself (see "Settings").
 - **Test over a light desktop.** Transparency and corner masking bugs only show over bright wallpaper. Dark wallpaper hides them.
 - **No `NSAlert` or system popovers.** Every confirmation, failure report, value prompt and transient readout is Tinycast's own SwiftUI surface (see "Dialogs & HUD"). An Aqua alert on an alpha-over-vibrancy app reads as a different product, and its `runModal` run loop keeps Carbon hotkeys firing underneath.
-- **A dialog has three independent axes; never let one infer another.** The **icon** (`DialogRequest.symbol`, required) is always the *subject's* own glyph — a command being confirmed uses its `SystemAction.sfSymbol`, so the Restart dialog shows the same icon as the Restart row. Tone never picks an icon. The **tone** (`DialogTone`: `.neutral` / `.success` / `.danger`) tints only that glyph. The **button** takes its color from `DialogAction.Role` (`.standard` white / `.destructive` red / `.cancel` secondary), so a red-glyph security warning can still carry a plain white button — as "Import executable commands?" does.
+- **A dialog has three independent axes; never let one infer another.** The **icon** (`DialogRequest.icon`) is always the *subject's* own glyph — a command being confirmed uses its `SystemAction.sfSymbol`, so the Restart dialog shows the same icon as the Restart row. Tone never picks an icon. The **tone** (`DialogTone`: `.neutral` / `.success` / `.danger`) tints only that glyph. The **button** takes its color from `DialogAction.Role` (`.standard` white / `.destructive` red / `.cancel` secondary), so a red-glyph security warning can still carry a plain white button — as "Import executable commands?" does.
 - **Resolve every glyph through `SymbolImage`, not `Image(systemName:)`.** Some catalog symbols are bundled assets in `Assets.xcassets` (`toggleBluetooth`), and `Image(systemName:)` silently renders nothing for those.
 - **↵ runs the primary action, Escape cancels, and Cancel always renders leading** (the left button), matching macOS convention. A button never prints its key cap; a deliberate hover reveals its outlined `KeyCapChip` in a `Tooltip`.
   Native launcher forms save with **⌘↵**; a textarea keeps Return for line breaks.
@@ -500,7 +500,9 @@ sole owner rule) and is the only presenter, so every confirmation in the app loo
 - **Three independent axes.** The **icon** says _what_, the **tone** says _how serious_, the **button
   role** says _what happens if you click_. None of them derives another — that separation is the
   whole point of the design, and collapsing any two of them back together is a regression.
-- **Icon.** `DialogRequest.symbol` is required and is always the subject's own glyph: a system
+- **Icon.** `DialogRequest.icon` is always the subject's own: `.symbol` names a glyph, and
+  `.artwork` is a view the subject supplies, such as an extension's own `confirmAlert` icon, drawn
+  as handed over in the same tile with no tone tint. A system
   command passes its `SystemAction.sfSymbol`, so the Restart dialog shows `arrow.clockwise` and
   Empty Trash shows `trash.slash` — the same glyph as the launcher row the user just activated.
   Custom commands use `terminal`, the backup flows `square.and.arrow.up` / `.down`. Symbols render
@@ -682,7 +684,10 @@ it would couple two unrelated surfaces.
 
 A dialog carries at most one control beyond its buttons, and `DialogAccessory` makes that structural
 rather than a convention — `.volume` for the Set Volume prompt and `.snippetArguments` for a snippet's
-`{argument}` values. Text fields take `dialogTextField()`; inline enumerated arguments are `DialogChip`s.
+`{argument}` values. `.content` carries a caller's own compact control, such as an extension's
+"Do not show this message again" checkbox, which keeps its state with the caller and claims no arrow
+keys; such a request goes through `DialogController.ask`, which returns the index of the chosen action.
+Text fields take `dialogTextField()`; inline enumerated arguments are `DialogChip`s.
 `DialogPanel.handlesArrowKeys` is set from `DialogAccessory.claimsArrowKeys`, so the slider steps on
 ←/→ while snippet argument text fields keep their caret. Create Event uses the launcher form instead.
 

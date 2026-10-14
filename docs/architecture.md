@@ -107,7 +107,7 @@ into a store to mutate it.** That is the rule; `AppCore` holds only the closure 
 hotkey to a coordinator. Views inject `AppCore` through `@Environment` and use it as the *locator* for
 those coordinators — `core.quicklinkCoordinator.deleteQuicklink(…)` is the shape, and the alternative
 is injecting fifteen coordinators separately for no gain. Reading a store off `AppCore` to render it is
-fine too; deciding something with one is what the rule forbids. `showNotice`, `confirm`,
+fine too; deciding something with one is what the rule forbids. `showNotice`, `confirm`, `ask`,
 `reportFailure`, `showMessage` and `pickVolume` are forwarders on `AppCore` itself, so
 `DialogController` and `MessageHUDController` stay single-owned.
 

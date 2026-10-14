@@ -29,8 +29,8 @@ struct DialogView: View {
         let shape = RoundedRectangle(cornerRadius: metrics.radius.panel, style: .continuous)
         VStack(alignment: .leading, spacing: metrics.spacing.xxl) {
             VStack(alignment: .leading, spacing: metrics.spacing.xxl) {
-                if let symbol = request.symbol {
-                    DialogSymbol(name: symbol, tone: request.tone)
+                if let icon = request.icon {
+                    DialogIconTile(icon: icon, tone: request.tone)
                 }
 
                 VStack(alignment: .leading, spacing: metrics.spacing.sm) {
@@ -47,6 +47,7 @@ struct DialogView: View {
                 switch request.accessory {
                 case .volume(let volume): VolumeSlider(state: volume)
                 case .snippetArguments(let arguments): SnippetArgumentFields(state: arguments)
+                case .content(let content): content
                 case nil: EmptyView()
                 }
             }
@@ -109,14 +110,13 @@ struct DialogView: View {
     }
 }
 
-private struct DialogSymbol: View {
+private struct DialogIconTile: View {
     @Environment(\.metrics) private var metrics
-    let name: String
+    let icon: DialogIcon
     let tone: DialogTone
 
     var body: some View {
-        SymbolImage(name: name, size: metrics.size.dialogSymbol, monochrome: true)
-            .foregroundStyle(symbolTint)
+        glyph
             .frame(
                 width: metrics.size.dialogSymbolContainer,
                 height: metrics.size.dialogSymbolContainer
@@ -124,6 +124,17 @@ private struct DialogSymbol: View {
             .background(
                 RoundedRectangle(cornerRadius: metrics.radius.dialogSymbol, style: .continuous)
                     .fill(tone.tileFill))
+    }
+
+    @ViewBuilder private var glyph: some View {
+        switch icon {
+        case .symbol(let name):
+            SymbolImage(name: name, size: metrics.size.dialogSymbol, monochrome: true)
+                .foregroundStyle(symbolTint)
+        case .artwork(let artwork):
+            artwork
+                .frame(width: metrics.size.dialogSymbol, height: metrics.size.dialogSymbol)
+        }
     }
 
     /// Neutral glyphs need the same legibility as a key-cap symbol; semantic colours stay intact.

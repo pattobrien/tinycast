@@ -894,6 +894,11 @@ final class AppCore {
             confirmRole: confirmRole, dismissTitle: dismissTitle)
     }
 
+    /// A request shaped by its caller; the returned index is into `request.actions`.
+    func ask(_ request: DialogRequest) async -> Int {
+        await dialogs.ask(request)
+    }
+
     /// A question with more than two answers; the returned index is into `options`.
     func choose(
         title: String, message: String?, symbol: String?, options: [DialogAction],

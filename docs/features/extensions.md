@@ -124,7 +124,10 @@ Two host-call flavours:
 | `Service/ExtensionFetcher.swift`              | HTTP over `URLSession` or a Unix socket, plus async `exec` collection and the shared PATH resolver         |
 | `Service/ExtensionWebSocketBridge.swift`      | `URLSessionWebSocketTask` connections, opened and read from JS                                             |
 | `Service/ExtensionNameResolver.swift`         | `getaddrinfo`, which is how a `.local` name resolves                                                       |
-| `Service/ExtensionStorage.swift`              | per-extension `LocalStorage`, `Cache` and preference values (one JSON file each)                           |
+| `Service/ExtensionStorage.swift`              | per-extension `LocalStorage`, `Cache`, preference values and remembered alert answers (one JSON file each) |
+| `Service/ExtensionAlertMemory.swift`          | `rememberUserChoice`: replays a remembered answer, or presents and records a ticked one                    |
+| `Model/ExtensionAlert.swift`                  | a `confirmAlert` payload and `ExtensionAlertKey`, the identity a remembered answer is stored under         |
+| `Model/ExtensionCommandRef.swift`             | one command of one extension, and its launcher entry ID                                                    |
 | `Service/ExtensionCommandMetadataStore.swift` | every command's subtitle override, refresh bookkeeping and menu-bar state, in one small file               |
 | `Service/ExtensionCatalog.swift`              | discovery on disk, install, uninstall, import-from-Raycast                                                 |
 | `Service/ExtensionCleanup.swift`              | the build workspace's name, the launch sweep, and reclaiming orphans                                       |
@@ -439,6 +442,16 @@ screens hold (see [palette.md](palette.md)).
   `.dialog`, above the palette's `.palette`, so a view command keeps its screen behind it — and
   the palette does not dismiss while it is up (`AppCore.isShowingDialog`), because dismissing pops to
   root, which would tear the command down before its `await confirmAlert(…)` ever returns.
+  The alert's `icon` fills the dialog's icon tile: an untinted `Icon` is a `DialogIcon.symbol`
+  that tone tints like any dialog glyph, and anything else is `.artwork` drawn by
+  `ExtensionAlertIcon`. `rememberUserChoice` adds `ExtensionRememberChoiceToggle` as a `.content`
+  accessory, and `ExtensionAlertMemory` keeps a ticked answer in `ExtensionStorage.alertAnswers`,
+  keyed by `ExtensionAlertKey`: the command plus the sorted-JSON wording (title, message, both
+  button titles). Asked again, it returns that answer without a dialog, and the runtime still runs
+  the matching `onAction`. A background run gets a remembered answer the same way, and `false`
+  without a dialog when there is none, so the bridge lets `confirmAlert` past its background guard
+  and `ExtensionAlertMemory` refuses only the present step. **Reset Confirmation Dialogs** in the
+  command's settings rows forgets them; it shows only while that command holds one.
 - **Command arguments** — a command declaring `arguments` shows inline fields sized to their
   placeholders, right after the typed text. Tab walks search field → each
   argument → back; Left/Right do the same only when their caret reaches a field boundary. Returning
@@ -678,7 +691,8 @@ with nothing due costs a comparison. Three guards keep it cheap:
 - Intervals clamp to a minute; failures back off exponentially to a day.
 - A tick never preempts a running command — foreground first, the tick waits for the next due.
 - A hung run dies before its successor is due, and a background run shows no toast, HUD, alert or
-  window call, since those would fire on a timer.
+  window call, since those would fire on a timer. A `confirmAlert` it makes still gets a remembered
+  answer, and `false` otherwise.
 
 `ExtensionRefreshPolicy` is where the parsing, due dates and backoff live, driven by
 `Tests/ext-refresh-test.swift`; `Tests/ext-metadata-test.swift` covers the store behind it. Menu-bar
@@ -911,6 +925,7 @@ never shares with an installed copy.
 | -------------------------------------------------- | ----------------------------------------------------- | ----------------- |
 | The extension                                      | `extensions/<name>/`                                  | yes               |
 | `LocalStorage`, `Cache`, preferences, OAuth tokens | `extension-data/<safe name>.json`                     | yes               |
+| Remembered `confirmAlert` answers                  | `extension-data/<safe name>.json`                     | yes               |
 | Command subtitle, refresh state                    | `extension-commands.json`                             | yes               |
 | Installed store version                            | `extension-versions.json`                             | yes               |
 | `environment.supportPath`                          | `extension-support/<safe name>/`                      | yes               |

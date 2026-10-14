@@ -958,7 +958,8 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
     }
 
     func confirmAlert(_ alert: ExtensionAlert) async -> Bool {
-        await coordinator?.confirmExtensionAlert(alert) ?? false
+        await coordinator?.confirmExtensionAlert(
+            alert, from: backgroundRef ?? running, launchType: activeLaunchType) ?? false
     }
 
     func openWithPicker(path: String) async {

@@ -19,13 +19,13 @@ final class DialogController: NSObject, NSWindowDelegate {
         confirmRole: DialogAction.Role, dismissTitle: String = "Cancel"
     ) async -> Bool {
         let request = DialogRequest(
-            title: title, message: message, symbol: symbol, tone: tone,
+            title: title, message: message, icon: symbol.map(DialogIcon.symbol), tone: tone,
             actions: [
                 DialogAction(title: confirmTitle, role: confirmRole),
                 DialogAction(title: dismissTitle, role: .cancel)
             ],
             defaultIndex: 0, cancelIndex: 1)
-        return await present(request) == 0
+        return await ask(request) == 0
     }
 
     /// More than two ways forward; `options` is in dispatch order and the last one is the cancel.
@@ -34,16 +34,16 @@ final class DialogController: NSObject, NSWindowDelegate {
         options: [DialogAction], defaultIndex: Int
     ) async -> Int {
         let request = DialogRequest(
-            title: title, message: message, symbol: symbol, tone: tone, actions: options,
-            defaultIndex: defaultIndex, cancelIndex: options.count - 1)
-        return await present(request)
+            title: title, message: message, icon: symbol.map(DialogIcon.symbol), tone: tone,
+            actions: options, defaultIndex: defaultIndex, cancelIndex: options.count - 1)
+        return await ask(request)
     }
 
     func notice(title: String, message: String, symbol: String, tone: DialogTone) async {
         let request = DialogRequest(
-            title: title, message: message, symbol: symbol, tone: tone,
+            title: title, message: message, icon: .symbol(symbol), tone: tone,
             actions: [DialogAction(title: "OK", role: .cancel)], defaultIndex: 0, cancelIndex: 0)
-        _ = await present(request)
+        _ = await ask(request)
     }
 
     /// Something already went wrong, unlike `confirm`; true if recovery was taken.
@@ -57,22 +57,22 @@ final class DialogController: NSObject, NSWindowDelegate {
         // ↵ lands on the recovery action when there is one to take, not on the OK dismissal.
         let recoveryIndex = recovery == nil ? nil : actions.count - 1
         let request = DialogRequest(
-            title: title, message: message, symbol: symbol, tone: .danger,
+            title: title, message: message, icon: .symbol(symbol), tone: .danger,
             actions: actions, defaultIndex: recoveryIndex ?? 0, cancelIndex: 0)
-        return await present(request) == recoveryIndex
+        return await ask(request) == recoveryIndex
     }
 
     func pickVolume(current: Float32) async -> Float32? {
         let volume = VolumeState(level: Double(current))
         let request = DialogRequest(
-            title: "Set Volume", message: "Choose the output volume.", symbol: "speaker.wave.2",
-            tone: .neutral,
+            title: "Set Volume", message: "Choose the output volume.",
+            icon: .symbol("speaker.wave.2"), tone: .neutral,
             actions: [
                 DialogAction(title: "Set Volume"),
                 DialogAction(title: "Cancel", role: .cancel)
             ],
             defaultIndex: 0, cancelIndex: 1, accessory: .volume(volume))
-        guard await present(request) == 0 else { return nil }
+        guard await ask(request) == 0 else { return nil }
         return Float32(volume.level)
     }
 
@@ -81,18 +81,19 @@ final class DialogController: NSObject, NSWindowDelegate {
     ) async -> [String: String]? {
         let state = SnippetArgumentsState(arguments: arguments)
         let request = DialogRequest(
-            title: snippetName, message: "Fill in the template fields.", symbol: "curlybraces",
-            tone: .neutral,
+            title: snippetName, message: "Fill in the template fields.",
+            icon: .symbol("curlybraces"), tone: .neutral,
             actions: [
                 DialogAction(title: "Expand"),
                 DialogAction(title: "Cancel", role: .cancel)
             ],
             defaultIndex: 0, cancelIndex: 1, accessory: .snippetArguments(state))
-        guard await present(request) == 0 else { return nil }
+        guard await ask(request) == 0 else { return nil }
         return state.values
     }
 
-    private func present(_ request: DialogRequest) async -> Int {
+    /// Any request the entry points above don't shape; the answer indexes `request.actions`.
+    func ask(_ request: DialogRequest) async -> Int {
         // Keyed on the continuation, so a panel still fading can't swallow the next.
         guard continuation == nil else { return request.cancelIndex }
         return await withCheckedContinuation { continuation in
@@ -100,7 +101,7 @@ final class DialogController: NSObject, NSWindowDelegate {
             onPresentationChanged(true)
             let width =
                 switch request.accessory {
-                case nil, .volume: metrics.size.dialogCompactWidth
+                case nil, .volume, .content: metrics.size.dialogCompactWidth
                 case .snippetArguments: metrics.size.dialogWidth
                 }
             let content = hostingView(

@@ -24,6 +24,13 @@ struct ExtensionTests {
         var calls: [String] = []
         var toasts: [String] = []
         var huds: [String] = []
+        /// `confirmAlert` runs the shipped memory over this storage; nil keeps it unanswered.
+        var alertStorage: ExtensionStorage?
+        var alertCommand: ExtensionCommandRef?
+        var alertLaunchType = ExtensionLaunchType.userInitiated
+        /// The person at the dialog: each presented alert takes the next click and checkbox state.
+        var alertClicks: [(confirmed: Bool, remember: Bool)] = []
+        var presentedAlerts: [(alert: ExtensionAlert, offersRemember: Bool)] = []
         var opened: [String] = []
         private let fetcher = ExtensionFetcher()
         private let sockets = ExtensionWebSocketBridge()
@@ -54,6 +61,18 @@ struct ExtensionTests {
             case "feedback.showHUD":
                 huds.append(arguments.first?.stringValue ?? "")
                 return ""
+            case "feedback.confirmAlert":
+                guard let storage = alertStorage, let payload = arguments.first?.objectValue else {
+                    return ""
+                }
+                let confirmed = await ExtensionAlertMemory.confirm(
+                    ExtensionAlert(payload: payload), from: alertCommand,
+                    launchType: alertLaunchType, storage: storage
+                ) { alert, offersRemember in
+                    presentedAlerts.append((alert, offersRemember))
+                    return alertClicks.isEmpty ? (false, false) : alertClicks.removeFirst()
+                }
+                return confirmed ? "true" : "false"
             case "system.open":
                 opened.append(arguments.first?.stringValue ?? "")
                 return ""
@@ -198,6 +217,7 @@ struct ExtensionTests {
         await bundledModuleChecks()
         await navigationSearchRuntimeChecks()
         await searchAccessoryRuntimeChecks()
+        await confirmAlertRuntimeChecks()
         await formDropdownSearchRuntimeChecks()
         await searchFilteringDefaultRuntimeChecks()
         await linkAccessoryRuntimeChecks()
@@ -1554,6 +1574,173 @@ struct ExtensionTests {
                 ExtensionSearchAccessory(node: $0.activeRoot?.node("searchBarAccessory"))?.nodeID
             } == accessory.nodeID)
         await runtime.stop(session: "sAccessory")
+    }
+
+    /// `rememberUserChoice` end to end: JS asks, the shipped memory replays or presents, JS acts.
+    @MainActor
+    static func confirmAlertRuntimeChecks() async {
+        let (runtime, host, recorder) = makeRuntime()
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tinycast-ext-alert-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storage = ExtensionStorage(directory: directory)
+        let command = ExtensionCommandRef(extensionName: "fixture", commandName: "manage")
+        host.alertStorage = storage
+        host.alertCommand = command
+        do {
+            try await runtime.boot(
+                config: .current(supportDirectory: FileManager.default.temporaryDirectory))
+        } catch {
+            check("confirmAlert runtime boots", false, error.localizedDescription)
+            return
+        }
+
+        let source = """
+            "use strict";
+            const { List, ActionPanel, Action, Alert, Icon, confirmAlert } = require("@raycast/api");
+            const React = require("react");
+            const h = React.createElement;
+            module.exports.default = function Command() {
+              const [log, setLog] = React.useState([]);
+              const note = (entry) => setLog((entries) => [...entries, entry]);
+              const ask = (message, rememberUserChoice) => async () => {
+                const answer = await confirmAlert({
+                  title: "Delete project?", message, icon: Icon.Trash, rememberUserChoice,
+                  primaryAction: {
+                    title: "Delete", style: Alert.ActionStyle.Destructive,
+                    onAction: () => note("deleted"),
+                  },
+                  dismissAction: { title: "Keep", onAction: () => note("kept") },
+                });
+                note(String(answer));
+              };
+              return h(List, null, h(List.Item, {
+                title: "log:" + log.join(","),
+                actions: h(ActionPanel, null,
+                  h(Action, { title: "Ask", onAction: ask("Cannot be undone.", true) }),
+                  h(Action, { title: "Ask Other", onAction: ask("Something else.", true) }),
+                  h(Action, { title: "Ask Once", onAction: ask("Cannot be undone.", false) }))
+              }));
+            };
+            """
+        await runtime.start(
+            session: "sAlert", code: source, file: URL(fileURLWithPath: "/tmp/confirm-alert.js"),
+            mode: .view, context: launchContext(command: "manage"))
+        await settle(until: { !recorder.trees.isEmpty })
+
+        func log() -> String {
+            recorder.trees.last.flatMap {
+                ExtensionScreen(tree: $0, query: "").items.first?.node.string("title")
+            } ?? "no row"
+        }
+
+        func press(_ title: String, expecting expected: String) async {
+            guard let tree = recorder.trees.last,
+                let handler = ExtensionScreen.actions(
+                    in: ExtensionScreen(tree: tree, query: "").actionPanel(forItemAt: 0)
+                ).first(where: { $0.title == title })?.handler
+            else {
+                check("\(title) is an action", false)
+                return
+            }
+            await runtime.dispatch(
+                session: "sAlert", handler: handler, payload: ExtensionRuntime.jsonString(from: []))
+            await settle(until: { log() == expected })
+        }
+
+        host.alertClicks = [(true, true)]
+        await press("Ask", expecting: "log:deleted,true")
+        check("a ticked Delete runs the primary onAction", log() == "log:deleted,true", log())
+        let first = host.presentedAlerts.first
+        check("the checkbox is offered when the alert asks for it", first?.offersRemember == true)
+        check("the icon crosses the wire", first?.alert.icon == .string("trash-16"))
+        check(
+            "the wording crosses the wire",
+            first.map {
+                [$0.alert.title, $0.alert.message ?? "nil", $0.alert.primaryTitle, $0.alert.dismissTitle]
+            } == ["Delete project?", "Cannot be undone.", "Delete", "Keep"])
+        check("a destructive style crosses the wire", first?.alert.isDestructive == true)
+
+        await press("Ask", expecting: "log:deleted,true,deleted,true")
+        check(
+            "a remembered Delete replays its onAction without a dialog",
+            log() == "log:deleted,true,deleted,true" && host.presentedAlerts.count == 1,
+            "\(log()) after \(host.presentedAlerts.count) dialogs")
+
+        host.alertClicks = [(false, false)]
+        await press("Ask Once", expecting: "log:deleted,true,deleted,true,kept,false")
+        check(
+            "without rememberUserChoice the same wording asks again, with no checkbox",
+            log() == "log:deleted,true,deleted,true,kept,false"
+                && host.presentedAlerts.map(\.offersRemember) == [true, false],
+            log())
+
+        host.alertClicks = [(false, true)]
+        await press("Ask Other", expecting: "log:deleted,true,deleted,true,kept,false,kept,false")
+        await press(
+            "Ask Other", expecting: "log:deleted,true,deleted,true,kept,false,kept,false,kept,false")
+        check(
+            "another message is another alert, and a ticked Keep replays the dismiss onAction",
+            log() == "log:deleted,true,deleted,true,kept,false,kept,false,kept,false"
+                && host.presentedAlerts.count == 3,
+            "\(log()) after \(host.presentedAlerts.count) dialogs")
+
+        storage.forgetRememberedAnswers(for: command)
+        host.alertClicks = [(true, false), (true, false)]
+        await press(
+            "Ask",
+            expecting: "log:deleted,true,deleted,true,kept,false,kept,false,kept,false,"
+                + "deleted,true")
+        await press(
+            "Ask",
+            expecting: "log:deleted,true,deleted,true,kept,false,kept,false,kept,false,"
+                + "deleted,true,deleted,true")
+        check(
+            "after a reset it asks again, and an unticked answer is never kept",
+            host.presentedAlerts.count == 5 && !storage.hasRememberedAnswers(for: command),
+            "\(host.presentedAlerts.count) dialogs")
+
+        host.alertCommand = nil
+        host.alertClicks = [(true, true), (true, true)]
+        await press(
+            "Ask",
+            expecting: "log:deleted,true,deleted,true,kept,false,kept,false,kept,false,"
+                + "deleted,true,deleted,true,deleted,true")
+        await press(
+            "Ask",
+            expecting: "log:deleted,true,deleted,true,kept,false,kept,false,kept,false,"
+                + "deleted,true,deleted,true,deleted,true,deleted,true")
+        check(
+            "with no command to keep it under, a ticked answer offers no checkbox and is not kept",
+            host.presentedAlerts.count == 7
+                && host.presentedAlerts.suffix(2).map(\.offersRemember) == [false, false]
+                && !storage.hasRememberedAnswers(for: command),
+            "\(host.presentedAlerts.count) dialogs")
+
+        host.alertCommand = command
+        host.alertClicks = [(true, true)]
+        let beforeBackground = log()
+        await press("Ask", expecting: beforeBackground + ",deleted,true")
+        host.alertLaunchType = .background
+        host.alertClicks = [(true, false)]
+        await press("Ask", expecting: beforeBackground + ",deleted,true,deleted,true")
+        check(
+            "a background run gets the remembered Delete and runs its onAction, with no dialog",
+            log() == beforeBackground + ",deleted,true,deleted,true"
+                && host.presentedAlerts.count == 8,
+            "\(log()) after \(host.presentedAlerts.count) dialogs")
+        await press("Ask Other", expecting: beforeBackground + ",deleted,true,deleted,true,kept,false")
+        await press(
+            "Ask Once", expecting: beforeBackground + ",deleted,true,deleted,true,kept,false,kept,false")
+        check(
+            "a background run with nothing remembered gets false and the dismiss onAction, no dialog",
+            log() == beforeBackground + ",deleted,true,deleted,true,kept,false,kept,false"
+                && host.presentedAlerts.count == 8 && host.alertClicks.count == 1,
+            "\(log()) after \(host.presentedAlerts.count) dialogs")
+        check(
+            "no failures in the alert command", recorder.failures.isEmpty,
+            recorder.failures.joined(separator: "\n"))
+        await runtime.stop(session: "sAlert")
     }
 
     static func field(_ tree: RenderTree?, _ id: String) -> RenderNode? {

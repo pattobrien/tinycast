@@ -604,6 +604,31 @@ private struct CommandRows: View {
                 extensionName: installed.manifest.name, command: command, schedule: schedule,
                 indent: Theme.Spacing.lg)
         }
+        ExtensionAlertResetRow(reference: reference, indent: Theme.Spacing.lg)
+    }
+}
+
+/// Raycast's home for undoing "Do not show this message again", shown only while one is held.
+private struct ExtensionAlertResetRow: View {
+    let reference: ExtensionCommandRef
+    var indent: CGFloat = 0
+    @Environment(AppCore.self) private var core
+    /// Storage is not observable, so the reset hides the row itself.
+    @State private var isReset = false
+
+    var body: some View {
+        if !isReset, core.extensionCoordinator.hasRememberedAlertAnswers(reference) {
+            SettingsCardRow(
+                title: "Remembered answers",
+                detail: "Dialogs this command skips after “Do not show this message again”.",
+                indent: indent, controlWidth: nil
+            ) {
+                Button("Reset Confirmation Dialogs") {
+                    core.extensionCoordinator.resetRememberedAlertAnswers(reference)
+                    isReset = true
+                }
+            }
+        }
     }
 }
 
