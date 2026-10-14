@@ -235,6 +235,11 @@ struct ExtensionCommandScreen: PaletteScreen {
                 onFieldChange: { field, value in
                     guard let handler = field.handler("onTinycastChange") else { return }
                     extensions.dispatch(handler: handler, arguments: [value])
+                },
+                onFieldSearchTextChange: { field, text in
+                    guard let handler = ExtensionSearchContract(node: field).textHandler
+                    else { return }
+                    extensions.dispatch(handler: handler, arguments: [text])
                 }
             )
             .onChange(of: vm.query) { _, query in extensions.searchQueryChanged(to: query) })

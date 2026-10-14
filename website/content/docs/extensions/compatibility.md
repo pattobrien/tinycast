@@ -13,9 +13,10 @@ We tested Tinycast against the 37 extensions installed in Raycast on the develop
 
 **Components.** `List` and `Grid` with sections, empty views, item details and search bar dropdowns.
 `Detail` with `Metadata`. `Form` with every field type: text, password, text area, checkbox,
-dropdown, tag picker, date picker, file picker, separator and description. `ActionPanel` with
-sections and submenus, and `Action` with all its built-in variants. Older names still used by
-published extensions also work.
+dropdown, tag picker, date picker, file picker, separator and description. A form dropdown can
+load its own choices as you type, with `onSearchTextChange`, `throttle`, `filtering` and
+`isLoading`. `ActionPanel` with sections and submenus, and `Action` with all its built-in variants.
+Older names still used by published extensions also work.
 
 **APIs.** `Clipboard`, `LocalStorage`, `Cache`, `environment`, `getPreferenceValues`, `showToast`,
 `showHUD`, `confirmAlert`, `closeMainWindow`, `popToRoot`, `clearSearchBar`, `open`, `trash`,
@@ -61,6 +62,7 @@ reopens the palette, since passing it on would open Raycast itself.
 | **Streaming HTTP**                               | Responses arrive all at once, so server-sent events and download progress don't work      |
 | **`net` and `tls`**                              | Load without errors, but fail when used                                                   |
 | **AI tools (`tools/`)**                          | Not shown                                                                                 |
+| **Search bar dropdown `onSearchTextChange`**     | `List.Dropdown` and `Grid.Dropdown` always filter their own choices                       |
 
 **If an extension needs something that's missing, it tells you when you run it** instead of failing
 silently or showing a broken screen.

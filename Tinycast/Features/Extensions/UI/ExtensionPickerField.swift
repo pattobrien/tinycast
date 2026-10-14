@@ -7,7 +7,11 @@ struct ExtensionPickerField: View {
     let items: [ExtensionPickerItem]
     /// Every value currently held; a dropdown has one, a tag picker any number.
     let chosen: [String]
+    let search: ExtensionSearchContract
+    /// What the closed control reads with nothing chosen.
     let placeholder: String
+    /// What the open control reads before anything is typed.
+    let prompt: String
     /// The field's own title, so the control announces what it is rather than as a chevron.
     let title: String
     /// The field's own explanation, spoken after the state so both are heard.
@@ -19,10 +23,13 @@ struct ExtensionPickerField: View {
     let index: Int?
     @FocusState.Binding var focus: Int?
     let onChange: ([String]) -> Void
+    let onSearchTextChange: (String) -> Void
     let onSubmit: () -> Void
 
     @State private var open = false
     @State private var query = ""
+    /// The choices `chosen` last resolved to, so a search that drops one keeps its title.
+    @State private var remembered: [ExtensionPickerItem] = []
     /// When the query last changed, which is where the caret's blink restarts from.
     @State private var typedAt = Date()
     @State private var highlighted = 0
@@ -46,22 +53,28 @@ struct ExtensionPickerField: View {
         return ([state] + parts).joined(separator: ". ")
     }
 
+    private var chosenItems: [ExtensionPickerItem] {
+        ExtensionPickerItem.chosen(chosen, in: items, remembered: remembered)
+    }
+
     private var label: String {
-        let titles = chosen.compactMap { value in items.first { $0.value == value }?.title }
+        let titles = chosenItems.map(\.title)
         return titles.isEmpty ? placeholder : titles.joined(separator: ", ")
     }
 
     private var leadingIcon: ExtensionImage.Resolved? {
-        guard !allowsMultipleSelection, let value = chosen.first else { return nil }
-        let icon = items.first { $0.value == value }?.iconValue
+        guard !allowsMultipleSelection, let icon = chosenItems.first?.iconValue else { return nil }
         return ExtensionImage.resolve(icon, assetsPath: assetsPath, isDark: isDark)
     }
 
     private var matches: [ExtensionPickerItem] {
-        let trimmed = query.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return items }
-        let needle = FuzzyMatch.Query(trimmed)
-        return items.filter { FuzzyMatch.score(needle, candidate: $0.title) != nil }
+        let filter = search.filter(for: query)
+        return items.filter { filter.admits([$0.title]) }
+    }
+
+    /// Clamped as read: an extension can replace the choices under a held highlight.
+    private var highlightedMatch: Int {
+        min(highlighted, max(matches.count - 1, 0))
     }
 
     /// Headings the open list draws, which its height and its flip decision both count.
@@ -83,9 +96,9 @@ struct ExtensionPickerField: View {
                 open: open, height: listHeight, revision: revision, flipped: $flipped
             ) {
                 ExtensionPickerList(
-                    items: matches, selection: highlighted, chosen: Set(chosen),
-                    assetsPath: assetsPath, onSelect: { choose(at: $0) },
-                    onHighlight: { highlighted = $0 })
+                    items: matches, selection: highlightedMatch, chosen: Set(chosen),
+                    assetsPath: assetsPath, isLoading: search.isLoading,
+                    onSelect: { choose(at: $0) }, onHighlight: { highlighted = $0 })
             }
             .onKeyPress(phases: [.down, .repeat]) { press in
                 guard !palette.menuOpen, !ExtensionFormKey.enterKeys.contains(press.key)
@@ -95,7 +108,7 @@ struct ExtensionPickerField: View {
                 case .moveUp: return move(-1)
                 case .moveDown: return move(1)
                 case .commit:
-                    choose(at: highlighted)
+                    choose(at: highlightedMatch)
                     return .handled
                 case .dismiss:
                     close()
@@ -117,14 +130,18 @@ struct ExtensionPickerField: View {
                 ExtensionFormKeys(
                     field: allowsMultipleSelection ? .tagPicker : .dropdown,
                     onActivate: {
-                        if open { choose(at: highlighted) } else { _ = openList() }
+                        if open { choose(at: highlightedMatch) } else { _ = openList() }
                     },
                     onSubmit: {
                         close(); onSubmit()
                     })
             )
             .onChange(of: open) { palette.noteControlListOpen(open) }
-            .onChange(of: query) { typedAt = Date() }
+            .onChange(of: query) {
+                typedAt = Date()
+                if search.textHandler != nil { onSearchTextChange(query) }
+            }
+            .onChange(of: chosenItems, initial: true) { remembered = chosenItems }
             .onScrollVisibilityChange { if !$0 { close() } }
             .onChange(of: palette.controlListDismissToken) { close() }
             .onDisappear { if open { palette.noteControlListOpen(false) } }
@@ -150,7 +167,7 @@ struct ExtensionPickerField: View {
                         .font(metrics.typography.rowTitle)
                         .foregroundStyle(Theme.Colors.textTertiary)
                 }
-                ExtensionQueryText(query: query, prompt: "Search…", phase: typedAt)
+                ExtensionQueryText(query: query, prompt: prompt, phase: typedAt)
             } else {
                 Text(label)
                     .font(metrics.typography.rowTitle)
@@ -160,6 +177,11 @@ struct ExtensionPickerField: View {
                     .lineLimit(1)
             }
             Spacer(minLength: metrics.spacing.sm)
+            if open, search.isLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
+            }
             ExtensionDisclosureChevron(open: open, flipped: flipped)
         }
         .extensionFieldChrome(focused: isFocused, open: open)
@@ -191,12 +213,13 @@ struct ExtensionPickerField: View {
         let chosen: [String]
         let items: [ExtensionPickerItem]
         let assetsPath: String?
+        let isLoading: Bool
     }
 
     private var revision: Revision {
         Revision(
-            query: query, highlighted: highlighted, isDark: isDark,
-            chosen: chosen, items: matches, assetsPath: assetsPath)
+            query: query, highlighted: highlightedMatch, isDark: isDark,
+            chosen: chosen, items: matches, assetsPath: assetsPath, isLoading: search.isLoading)
     }
 
     private func openList() -> KeyPress.Result {
@@ -216,7 +239,7 @@ struct ExtensionPickerField: View {
     private func move(_ delta: Int) -> KeyPress.Result {
         let count = matches.count
         guard count > 0 else { return .handled }
-        highlighted = min(max(highlighted + delta, 0), count - 1)
+        highlighted = min(max(highlightedMatch + delta, 0), count - 1)
         return .handled
     }
 

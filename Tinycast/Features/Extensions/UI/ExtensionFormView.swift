@@ -11,6 +11,7 @@ struct ExtensionFormView: View {
     let scroll: ScrollIntent
     let onSelect: (Int) -> Void
     let onChange: (RenderNode, Any) -> Void
+    let onSearchTextChange: (RenderNode, String) -> Void
     let onSubmit: () -> Void
     /// Told when a control owns the keyboard, so a bare backspace edits instead of backing out.
     @Environment(PaletteState.self) private var palette
@@ -124,14 +125,17 @@ struct ExtensionFormView: View {
                 ExtensionPickerField(
                     items: ExtensionPickerItem.items(in: field),
                     chosen: [field.string("value") ?? ""].filter { !$0.isEmpty },
-                    placeholder: field.string("placeholder") ?? "Select…",
+                    search: ExtensionSearchContract(node: field),
+                    placeholder: "Select…",
+                    prompt: field.string("placeholder") ?? "Search…",
                     title: field.string("title") ?? "Dropdown",
                     info: field.string("info"),
                     error: field.string("error"),
                     assetsPath: assetsPath,
                     allowsMultipleSelection: false,
                     index: index, focus: $focused,
-                    onChange: { onChange(field, $0.first ?? "") }, onSubmit: onSubmit)
+                    onChange: { onChange(field, $0.first ?? "") },
+                    onSearchTextChange: { onSearchTextChange(field, $0) }, onSubmit: onSubmit)
             }
 
         case "Form.TagPicker":
@@ -139,14 +143,17 @@ struct ExtensionFormView: View {
                 ExtensionPickerField(
                     items: ExtensionPickerItem.items(in: field),
                     chosen: field.array("value").compactMap(\.stringValue),
+                    search: ExtensionSearchContract(node: field),
                     placeholder: field.string("placeholder") ?? "Select…",
+                    prompt: "Search…",
                     title: field.string("title") ?? "Tags",
                     info: field.string("info"),
                     error: field.string("error"),
                     assetsPath: assetsPath,
                     allowsMultipleSelection: true,
                     index: index, focus: $focused,
-                    onChange: { onChange(field, $0) }, onSubmit: onSubmit)
+                    onChange: { onChange(field, $0) },
+                    onSearchTextChange: { onSearchTextChange(field, $0) }, onSubmit: onSubmit)
             }
 
         case "Form.DatePicker":

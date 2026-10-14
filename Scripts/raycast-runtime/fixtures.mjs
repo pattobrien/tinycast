@@ -877,7 +877,7 @@ export async function runFixtures() {
     check("renders a section with items", dump.includes("<List.Section") && dump.includes("<List.Item"));
     check("serializes accessories", dump.includes("accessories=[2]"));
     check("hoists actions into a prop", dump.includes("actions=<ActionPanel>"));
-    check("defaults filtering to true", dump.includes("filtering=true"));
+    check("leaves the filtering default to Swift", !dump.includes("filtering="));
 
     const item = findNode(tree, "List.Item");
     const panel = item.props.actions;

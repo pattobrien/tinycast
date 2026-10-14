@@ -10,6 +10,7 @@ struct ExtensionCommandView: View {
     let onActivate: (Int) -> Void
     let onActions: (Int) -> Void
     let onFieldChange: (RenderNode, Any) -> Void
+    let onFieldSearchTextChange: (RenderNode, String) -> Void
 
     var body: some View {
         content
@@ -36,11 +37,12 @@ struct ExtensionCommandView: View {
                 ExtensionDetailBody(
                     markdown: screen.root?.string("markdown"),
                     metadata: screen.root?.node("metadata"),
-                    isLoading: screen.isLoading, assetsPath: assetsPath)
+                    isLoading: screen.search.isLoading, assetsPath: assetsPath)
             case .form:
                 ExtensionFormView(
                     screen: screen, assetsPath: assetsPath, selection: selection, scroll: scroll,
                     onSelect: onSelect, onChange: onFieldChange,
+                    onSearchTextChange: onFieldSearchTextChange,
                     onSubmit: { onActivate(selection) })
             case .unsupported(let type):
                 if type.isEmpty {

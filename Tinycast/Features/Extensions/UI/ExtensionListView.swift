@@ -36,7 +36,7 @@ struct ExtensionListView: View {
 
     @ViewBuilder
     private var emptyState: some View {
-        if screen.isLoading {
+        if screen.search.isLoading {
             EmptyResults(text: "Loading…")
         } else if let empty = screen.emptyView {
             VStack(spacing: metrics.spacing.md) {

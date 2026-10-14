@@ -44,12 +44,9 @@ struct ExtensionScreen: Equatable {
     let items: [Item]
     /// Fields of a Form, in order.
     let fields: [RenderNode]
-    let isLoading: Bool
+    let search: ExtensionSearchContract
     let navigationTitle: String?
     let searchPlaceholder: String?
-    /// True when the palette filters rows itself; false when the extension owns the search text.
-    let filtersLocally: Bool
-    let searchTextHandler: String?
     let selectionHandler: String?
     let selectedItemID: String?
     let searchBarAccessory: RenderNode?
@@ -76,10 +73,9 @@ struct ExtensionScreen: Equatable {
     }
 
     static let empty = ExtensionScreen(
-        kind: .unsupported(""), root: nil, rows: [], items: [], fields: [], isLoading: false,
-        navigationTitle: nil, searchPlaceholder: nil, filtersLocally: false, searchTextHandler: nil,
-        selectionHandler: nil, selectedItemID: nil, searchBarAccessory: nil, showsDetail: false,
-        screenActions: nil, emptyView: nil)
+        kind: .unsupported(""), root: nil, rows: [], items: [], fields: [], search: .inert,
+        navigationTitle: nil, searchPlaceholder: nil, selectionHandler: nil, selectedItemID: nil,
+        searchBarAccessory: nil, showsDetail: false, screenActions: nil, emptyView: nil)
 
     /// Filters rows by `query` only when the extension hasn't taken the search text over.
     init(tree: RenderTree, query: String) {
@@ -88,17 +84,14 @@ struct ExtensionScreen: Equatable {
             return
         }
         self.root = root
-        isLoading = root.bool("isLoading") ?? false
+        search = ExtensionSearchContract(node: root)
         navigationTitle = root.string("navigationTitle")
         searchPlaceholder = root.string("searchBarPlaceholder")
-        searchTextHandler = root.handler("onSearchTextChange")
         selectionHandler = root.handler("onSelectionChange")
         selectedItemID = root.string("selectedItemId")
         searchBarAccessory = root.node("searchBarAccessory")
         showsDetail = root.bool("isShowingDetail") ?? false
         screenActions = root.node("actions")
-        filtersLocally =
-            root.bool("filtering") ?? (root.object("filtering") != nil || searchTextHandler == nil)
 
         switch root.type {
         case "List":
@@ -119,8 +112,8 @@ struct ExtensionScreen: Equatable {
             let sectionType = root.type == "Grid" ? "Grid.Section" : "List.Section"
             let emptyType = root.type == "Grid" ? "Grid.EmptyView" : "List.EmptyView"
             emptyView = root.children.first { $0.type == emptyType }
-            let needle = FuzzyMatch.Query(
-                filtersLocally ? query.trimmingCharacters(in: .whitespaces) : "")
+            let filter = search.filter(for: query)
+            func admits(_ node: RenderNode) -> Bool { filter.admits(Self.searchTexts(node)) }
             var rows: [Row] = []
             var items: [Item] = []
             // Numbering as rows are built keeps `selection` and the drawn order in step.
@@ -133,14 +126,14 @@ struct ExtensionScreen: Equatable {
                 if child.type == sectionType {
                     let matching = child.children
                         .filter { $0.type == itemType }
-                        .filter { ExtensionScreen.matches($0, needle) }
+                        .filter(admits)
                     guard !matching.isEmpty else { continue }
                     rows.append(
                         .header(
                             title: child.string("title") ?? "",
                             subtitle: child.string("subtitle"), id: String(child.id)))
                     matching.forEach(append)
-                } else if child.type == itemType, ExtensionScreen.matches(child, needle) {
+                } else if child.type == itemType, admits(child) {
                     append(child)
                 }
             }
@@ -169,21 +162,18 @@ struct ExtensionScreen: Equatable {
 
     private init(
         kind: Kind, root: RenderNode?, rows: [Row], items: [Item], fields: [RenderNode],
-        isLoading: Bool, navigationTitle: String?, searchPlaceholder: String?, filtersLocally: Bool,
-        searchTextHandler: String?, selectionHandler: String?, selectedItemID: String?,
-        searchBarAccessory: RenderNode?, showsDetail: Bool, screenActions: RenderNode?,
-        emptyView: RenderNode?
+        search: ExtensionSearchContract, navigationTitle: String?, searchPlaceholder: String?,
+        selectionHandler: String?, selectedItemID: String?, searchBarAccessory: RenderNode?,
+        showsDetail: Bool, screenActions: RenderNode?, emptyView: RenderNode?
     ) {
         self.kind = kind
         self.root = root
         self.rows = rows
         self.items = items
         self.fields = fields
-        self.isLoading = isLoading
+        self.search = search
         self.navigationTitle = navigationTitle
         self.searchPlaceholder = searchPlaceholder
-        self.filtersLocally = filtersLocally
-        self.searchTextHandler = searchTextHandler
         self.selectionHandler = selectionHandler
         self.selectedItemID = selectedItemID
         self.searchBarAccessory = searchBarAccessory
@@ -204,13 +194,12 @@ struct ExtensionScreen: Equatable {
         return SelectionChange(handler: selectionHandler, itemID: itemID)
     }
 
-    /// Title, subtitle and keywords, ranked by the launcher's matcher.
-    static func matches(_ item: RenderNode, _ needle: FuzzyMatch.Query) -> Bool {
-        guard !needle.isEmpty else { return true }
-        var haystack = [item.string("title") ?? ""]
-        if let subtitle = item.string("subtitle") { haystack.append(subtitle) }
-        haystack.append(contentsOf: item.array("keywords").compactMap(\.stringValue))
-        return haystack.contains { FuzzyMatch.score(needle, candidate: $0) != nil }
+    /// What a row is searched by: its title, subtitle and keywords.
+    static func searchTexts(_ item: RenderNode) -> [String] {
+        var texts = [item.string("title") ?? ""]
+        if let subtitle = item.string("subtitle") { texts.append(subtitle) }
+        texts.append(contentsOf: item.array("keywords").compactMap(\.stringValue))
+        return texts
     }
 
     /// The `ActionPanel` that applies to the current selection: the item's own, else the screen's.
