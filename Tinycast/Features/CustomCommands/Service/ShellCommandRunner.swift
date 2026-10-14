@@ -7,6 +7,7 @@ enum ShellCommandTermination: Sendable, Equatable {
     case launchFailed(String)
     /// Apart from the status, which a signalled shell reports as 143 or 15.
     case stopped
+    case timedOut
 
     /// A signal death reports the signal as its status, so it fails here like any non-zero exit.
     var succeeded: Bool { self == .exited(status: 0) }
@@ -67,10 +68,10 @@ enum ShellCommandRunner {
     private static let queue = DispatchQueue(
         label: "com.tinycast.shell-command", qos: .userInitiated, attributes: .concurrent)
 
-    /// Fire-and-forget, keeping only the error tail; shown output goes through `stream`.
+    /// Captures both tails; past `timeout` it is stopped as Stop does and reports `.timedOut`.
     nonisolated static func run(
         _ command: String, arguments: [String] = [], loadingShellEnvironment: Bool = false,
-        workingDirectory: String? = nil
+        workingDirectory: String? = nil, timeout: Duration? = nil
     ) async -> ShellCommandResult {
         await withCheckedContinuation { continuation in
             queue.async {
@@ -78,14 +79,14 @@ enum ShellCommandRunner {
                     returning: execute(
                         command, arguments: arguments,
                         loadingShellEnvironment: loadingShellEnvironment,
-                        workingDirectory: workingDirectory))
+                        workingDirectory: workingDirectory, timeout: timeout))
             }
         }
     }
 
     nonisolated private static func execute(
         _ command: String, arguments: [String], loadingShellEnvironment: Bool,
-        workingDirectory: String?
+        workingDirectory: String?, timeout: Duration?
     ) -> ShellCommandResult {
         let launch: Launch
         do {
@@ -117,14 +118,22 @@ enum ShellCommandRunner {
             errors?.remove()
         }
 
+        let exit: ProcessExit
         do {
-            try process.runObservingExit().wait()
+            exit = try process.runObservingExit()
         } catch {
             return ShellCommandResult(termination: .launchFailed(error.localizedDescription))
         }
+        let timedOut =
+            timeout.map { !exit.wait(timeout: .nanoseconds(Int($0 / .nanoseconds(1)))) } ?? false
+        if timedOut {
+            process.terminate()
+            if !exit.wait(timeout: stopGrace) { kill(process.processIdentifier, SIGKILL) }
+        }
+        exit.wait()
 
         return ShellCommandResult(
-            termination: .exited(status: process.terminationStatus),
+            termination: timedOut ? .timedOut : .exited(status: process.terminationStatus),
             standardOutput: output?.readSuffix(limit: standardOutputLimit),
             standardError: errors?.readSuffix(limit: standardErrorLimit))
     }

@@ -475,6 +475,22 @@ struct CustomCommandTests {
         let mute = await ShellCommandRunner.run("true")
         check("a silent command offers no line to report", mute.lastOutputLine == nil)
 
+        // MARK: Timeout
+
+        let quick = await ShellCommandRunner.run("echo 7", timeout: .seconds(3))
+        check(
+            "a command inside its timeout exits as usual",
+            quick.termination == .exited(status: 0) && quick.standardOutput == "7")
+
+        let clock = ContinuousClock()
+        let started = clock.now
+        let overdue = await ShellCommandRunner.run("echo 8; sleep 5", timeout: .milliseconds(300))
+        let elapsed = clock.now - started
+        check(
+            "a command past its timeout is stopped, keeping what it printed (\(elapsed))",
+            overdue.termination == .timedOut && overdue.standardOutput == "8"
+                && elapsed < .seconds(2))
+
         // MARK: Icon and folder round-trip
 
         store.replace(with: [

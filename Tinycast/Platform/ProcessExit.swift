@@ -22,4 +22,11 @@ struct ProcessExit: Sendable {
         semaphore.wait()
         semaphore.signal()
     }
+
+    /// False when `timeout` passes before the exit.
+    func wait(timeout: DispatchTimeInterval) -> Bool {
+        guard semaphore.wait(timeout: .now() + timeout) == .success else { return false }
+        semaphore.signal()
+        return true
+    }
 }
