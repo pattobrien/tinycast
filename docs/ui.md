@@ -93,7 +93,9 @@ geometry by `Theme.Micro.scale` (0.8).
 **In any view a scaled surface can reach, read `@Environment(\.metrics)` rather than
 `Theme.Spacing/Radius/Size/Typography`** — the key defaults to `.standard`, so a shared `DesignSystem/`
 component renders unscaled in Settings without being forked. An AppKit site reads
-`settings.interfaceSize.metrics` where it computes its frame.
+`settings.interfaceMetrics` where it computes its frame. `AppSettings.interfaceMetrics` is the one read
+path: Interface Size's metrics with settings.json's `appearance.overrides` applied, so
+`InterfaceSize.metrics` alone is only the size's base.
 
 A length measured against the **screen** does not scale; a length measured against **our own content**
 does. So `hairline`, `paletteTopMarginFraction`, `paletteSnapDistance`, `paletteMinimumVisible`, the

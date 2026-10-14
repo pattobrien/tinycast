@@ -41,6 +41,7 @@ in `Features/Settings/` (`Model/`, `Service/`, `SettingsFileSchema.swift`), the 
 | `Settings/Model/SettingsFileFormat.swift` | The printer and the parser |
 | `Settings/Model/SettingsFileIssue.swift` | Every problem the file can have, and the HUD's line for them |
 | `Settings/Model/SettingsFileIdentity.swift` | A stable UUID from a string, for records written without an `id` |
+| `Settings/Model/InterfaceOverridesFileFormat.swift` | `appearance.overrides`: design tokens as JSON, and which entries apply |
 | `Settings/Service/SettingsFileRepository.swift` | The sync: import or replace, save, reload |
 | `Settings/Service/SettingsFileMonitor.swift` | Watches the folder and the file, a save-by-rename included |
 | `Settings/SettingsFileSchema.swift` | Each key's binding, and the enum conformances |
@@ -173,6 +174,72 @@ in `commands.builtIn` — by their ID after `command:`. App Launcher and Dictati
   app's `width` and `height` are fractions of its display, in full precision.
 - A room's window numbers and when it was last entered stay out of the file, and survive an edit to
   the room: `Room.keepingRuntime(of:)` returns a number only to a window of the same app.
+
+## Appearance overrides
+
+`appearance.overrides` sets any of the palette's design tokens to a size in points. A key is the
+token's path in `InterfaceMetrics` and `Theme`, its group then its name:
+
+```json
+"appearance": {
+  "interfaceSize": "large",
+  "overrides": { "spacing.sm": 4, "size.resultRowIcon": 16, "typography.rowTitle": 12 }
+}
+```
+
+- **A value is final, applied after Interface Size.** At Large, `"spacing.sm": 4` draws 4 points where
+  Large alone draws 7, and every token left out still scales. At Micro it replaces the value Micro
+  states outright, so `"size.resultRowIcon": 20` draws 20 points where Micro draws 16. A value applies
+  as written, fractions included.
+- **It reaches what Interface Size reaches:** the palette and the surfaces that float with it, the ⌘K
+  menu, the extension list panel, Quick Actions, dialogs and HUDs. Settings and the other windows keep
+  `Theme`. A length a surface tunes for itself, with no token of its own, follows only the scale, as
+  does an extension's form geometry.
+- **A `typography` value is the font's point size.** The face and weight stay the text style's.
+  `typography.searchFieldSize` sizes the search field in both frameworks, and `typography.chip` the
+  attachment chip and the `NSFont` that measures it.
+- **A derived token follows its inputs unless it is set itself.** `size.compactHeight` is
+  `size.headerHeight` plus twice `size.headerPadding`, `size.menuRowHeight` is `size.menuIcon` plus
+  twice `spacing.md`, `size.menuRowsMaxHeight` counts 5.5 of those rows, and `size.dialogButtonHeight`
+  stays the scaled reduction below `size.menuButton`.
+- **The object is the whole set.** A token it leaves out is cleared, so `{}` clears every override;
+  leaving `overrides` out of the file keeps the current ones. No pane edits them, and the app writes
+  them in the order below.
+- **A bad entry costs nothing.** An unknown key is reported and ignored, as
+  `no design token is called “spacing.bogus”`. A value that is not a number, or is negative, keeps
+  the token's current override and is reported, as
+  `“radius.row” must be a number of points, 0 or more`; a `typography` value must be more than 0.
+  An `overrides` that is not an object changes nothing and is reported.
+- A backup carries the overrides, and an import drops an entry these rules would refuse.
+
+### Override keys
+
+Every token, by group. `interface-overrides-test` checks this list against `InterfaceToken`, in order.
+
+- `spacing`: `xxs`, `xs`, `sm`, `md`, `lg`, `xl`, `dialogInset`, `xxl`, `xxxl`,
+  `sectionHeaderBottom`, `sectionSpacing`, `emojiSectionSpacing`, `rowVertical`,
+  `chatTranscriptBottom`, `chatFollowTailSlack`, `chatLine`
+- `radius`: `panel`, `row`, `formField`, `emojiCell`, `menu`, `menuRow`, `barControl`, `menuPanel`,
+  `dialogSymbol`, `dialog`, `thumbnail`, `glyph`, `attachmentChip`, `card`, `codeBlock`, `keyCap`,
+  `tooltip`
+- `size`: `panelWidth`, `panelHeight`, `headerHeight`, `headerIconSlot`, `searchFieldMinWidth`,
+  `headerPadding`, `compactHeight`, `bottomBarHeight`, `barButtonHeight`, `rowIcon`,
+  `resultRowIcon`, `colorDot`, `calendarBarWidth`, `calendarBarHeight`, `keyCap`, `compactKeyCap`,
+  `heroKeyCap`, `menuButton`, `checkbox`, `menuWidth`, `formMenuMinimumWidth`,
+  `formMenuExtraRowsHeight`, `formFieldFocusStroke`, `actionMenuWidth`, `clipboardFilterMenuWidth`,
+  `fileSearchFilterMenuWidth`, `emojiCategoryMenuWidth`, `menuIcon`, `menuBrandIcon`,
+  `barBrandIcon`, `menuRowSpacing`, `menuSectionHeader`, `menuRowHeight`, `menuRowsMaxHeight`,
+  `clipboardListWidth`, `clipboardMediaHeight`, `clipboardPreviewPixel`, `emojiGridInset`,
+  `emojiCell`, `markdownListMarker`, `markdownQuoteBar`, `chatMessageAction`, `chatSourceBadge`,
+  `chatJumpToLatest`, `chatImageThumb`, `chatAttachmentGlyph`, `chatAttachmentThumb`,
+  `chatAttachmentRemove`, `chatAttachmentInset`, `quickActionPanel`, `quickActionHeaderIcon`,
+  `quickActionScrollFade`, `quickActionPanelBody`, `quickActionPanelMinBody`, `dialogCompactWidth`,
+  `dialogWidth`, `dialogButtonHeight`, `dialogSymbol`, `dialogSymbolContainer`, `dialogIcon`,
+  `hudMaxWidth`, `hudWidth`, `hudHeight`, `volumeTrackHeight`, `volumeReadout`
+- `typography`: `searchFieldSize`, `headerIcon`, `rowTitle`, `rowTrailing`, `sectionHeader`,
+  `panelTitle`, `calcResult`, `keyCap`, `compactKeyCap`, `heroKeyCap`, `markdownHeading1`,
+  `markdownHeading2`, `markdownHeading3`, `code`, `inlineCode`, `bar`, `chip`, `disclosure`,
+  `menuRow`, `menuShortcut`, `menuIcon`
 
 ## Adding a setting
 

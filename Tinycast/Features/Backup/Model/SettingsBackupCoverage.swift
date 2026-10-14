@@ -20,6 +20,7 @@ enum SettingsBackupCoverage {
         "appearance": .appearance,
         "calcNumberStyle": .calcNumberStyle,
         "interfaceSize": .interfaceSize,
+        "interfaceOverrides": .interfaceOverrides,
         "compactMode": .compactMode,
         "showFavoritesInCompactMode": .showFavoritesInCompactMode,
         "searchScopes": .searchScopes,

@@ -224,17 +224,31 @@ final class AppSettings {
         didSet { defaults.set(calcNumberStyle.rawValue, forKey: Key.calcNumberStyle.rawValue) }
     }
 
-    /// Scales the palette and its floating siblings only. Read through `InterfaceSize.metrics`.
+    /// Scales the palette and its floating siblings only. Read through `interfaceMetrics`.
     var interfaceSize: InterfaceSize {
         didSet {
             defaults.set(interfaceSize.rawValue, forKey: Key.interfaceSize.rawValue)
-            let shift = Double(
-                (oldValue.metrics.size.panelWidth - interfaceSize.metrics.size.panelWidth) / 2)
-            if shift != 0 {
-                palettePositions = palettePositions.mapValues { offset in
-                    offset.count == 2 ? [offset[0] + shift, offset[1]] : offset
-                }
-            }
+            recentrePalettePositions(from: oldValue.metrics.overriding(interfaceOverrides))
+        }
+    }
+
+    /// Per-token final points over `interfaceSize`; settings.json edits them, no pane does.
+    var interfaceOverrides: [InterfaceToken: CGFloat] {
+        didSet {
+            defaults.set(
+                InterfaceToken.stored(interfaceOverrides), forKey: Key.interfaceOverrides.rawValue)
+            recentrePalettePositions(from: interfaceSize.metrics.overriding(oldValue))
+        }
+    }
+
+    var interfaceMetrics: InterfaceMetrics { interfaceSize.metrics.overriding(interfaceOverrides) }
+
+    /// A dragged palette keeps its centre where it was as the panel's width changes.
+    private func recentrePalettePositions(from old: InterfaceMetrics) {
+        let shift = Double((old.size.panelWidth - interfaceMetrics.size.panelWidth) / 2)
+        guard shift != 0 else { return }
+        palettePositions = palettePositions.mapValues { offset in
+            offset.count == 2 ? [offset[0] + shift, offset[1]] : offset
         }
     }
 
@@ -685,6 +699,9 @@ final class AppSettings {
         interfaceSize =
             defaults.string(forKey: Key.interfaceSize.rawValue).flatMap(InterfaceSize.init)
             ?? .standard
+        interfaceOverrides = InterfaceToken.overrides(
+            stored: defaults.dictionary(forKey: Key.interfaceOverrides.rawValue)
+                as? [String: Double] ?? [:])
         compactMode = defaults.bool(forKey: Key.compactMode.rawValue)
         // Defaults to true, so absence must be distinguished from a stored `false`.
         showFavoritesInCompactMode =
