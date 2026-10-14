@@ -37,6 +37,8 @@ final class PaletteCoordinator {
 
     var isVisible: Bool { windowController.isVisible }
 
+    func place(_ request: PalettePlacementRequest) { windowController.place(request) }
+
     var panelFrame: CGRect? { windowController.visibleFrame }
 
     /// The palette's own view, for AppKit UI anchored to it — a sharing picker, say.
