@@ -53,6 +53,7 @@ struct ChatMarkdownTests {
         formulasTypesetByTheirStructure()
         wideFormulasShrinkToTheLine()
         equationsStillArrivingHoldTheirPlace()
+        typographyOverridesReachTheText()
         print("\(passes) passed, \(failures) failed")
         if failures > 0 { exit(1) }
     }
@@ -291,5 +292,55 @@ struct ChatMarkdownTests {
         expect(
             links == ["https://example.com", "mailto:a@example.com"],
             "only web and mail links stay clickable, got \(links)")
+    }
+
+    static func typographyOverridesReachTheText() {
+        let text = """
+            # Title
+
+            ## Subtitle
+
+            ### Minor
+
+            Say `run` now.
+
+            ```
+            let x = 1
+            ```
+
+            | Head |
+            | - |
+            | cell |
+            """
+        let metrics = InterfaceMetrics.standard.overriding([
+            .typography(.markdownHeading1): 30, .typography(.markdownHeading2): 24,
+            .typography(.markdownHeading3): 18, .typography(.inlineCode): 11, .typography(.code): 19,
+            .typography(.sectionHeader): 9
+        ])
+        let rendered = ChatMarkdownRenderer(
+            ChatMarkdownSource(
+                blocks: MarkdownBlock.parse(text, midStream: false), highlight: nil, citations: [:],
+                prefix: [0], failedFrom: nil, metrics: metrics)
+        ).render().string
+        func font(of word: String) -> NSFont? {
+            let range = (rendered.string as NSString).range(of: word)
+            guard range.location != NSNotFound else { return nil }
+            return rendered.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont
+        }
+        let body = NSFont.preferredFont(forTextStyle: .body).pointSize
+        for (word, size) in [
+            ("Title", 30.0), ("Subtitle", 24), ("Minor", 18), ("run", 11), ("let x", 19), ("Head", 9),
+            ("Say", body), ("cell", body)
+        ] {
+            expect(
+                font(of: word)?.pointSize == size,
+                "\(word) draws at \(size) pt, got \(font(of: word)?.pointSize ?? 0)")
+        }
+        expect(font(of: "let x")?.isFixedPitch == true, "an overridden code block stays monospaced")
+        expect(font(of: "run")?.isFixedPitch == true, "overridden inline code stays monospaced")
+        expect(
+            font(of: "Title").map { NSFontManager.shared.weight(of: $0) }
+                == NSFontManager.shared.weight(of: NSFont.systemFont(ofSize: 30, weight: .semibold)),
+            "an overridden heading keeps its weight")
     }
 }

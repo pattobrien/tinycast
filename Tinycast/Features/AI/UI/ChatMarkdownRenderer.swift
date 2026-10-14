@@ -180,9 +180,9 @@ struct ChatMarkdownRenderer {
 
     private func headingFont(_ level: Int) -> NSFont {
         switch level {
-        case 1: typography.textNSFont(.title2, weight: .semibold)
-        case 2: typography.textNSFont(.title3, weight: .semibold)
-        default: typography.textNSFont(.headline)
+        case 1: typography.textNSFont(.title2, token: .markdownHeading1, weight: .semibold)
+        case 2: typography.textNSFont(.title3, token: .markdownHeading2, weight: .semibold)
+        default: typography.textNSFont(.headline, token: .markdownHeading3)
         }
     }
 
@@ -235,7 +235,7 @@ struct ChatMarkdownRenderer {
                     runFont = NSFontManager.shared.convert(runFont, toHaveTrait: .italicFontMask)
                 }
                 if intent.contains(.code) {
-                    runFont = typography.textNSFont(.body, monospaced: true)
+                    runFont = typography.textNSFont(.body, token: .inlineCode, monospaced: true)
                     attributes[.backgroundColor] = NSColor(Theme.Colors.controlSurface)
                 }
                 if intent.contains(.strikethrough) {
@@ -369,7 +369,7 @@ struct ChatMarkdownRenderer {
             edge: .minY)
         box.setWidth(spacing.lg, type: .absoluteValueType, for: .padding, edge: .maxY)
         box.setWidth(context.indent, type: .absoluteValueType, for: .margin, edge: .minX)
-        let font = typography.textNSFont(.callout, monospaced: true)
+        let font = typography.textNSFont(.callout, token: .code, monospaced: true)
         let style = paragraphStyle(in: context, extra: [box])
         style.firstLineHeadIndent = 0
         style.headIndent = 0
@@ -453,7 +453,9 @@ struct ChatMarkdownRenderer {
                 inside.indent = 0
                 inline(
                     column < cells.count ? cells[column] : "",
-                    font: row == 0 ? typography.textNSFont(.subheadline, weight: .medium) : bodyFont,
+                    font: row == 0
+                        ? typography.textNSFont(.subheadline, token: .sectionHeader, weight: .medium)
+                        : bodyFont,
                     leaf: path + [row, column], in: inside, into: output, extraBlocks: [cell],
                     alignment: alignment(table, column))
             }
