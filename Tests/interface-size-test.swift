@@ -298,7 +298,7 @@ struct InterfaceSizeTests {
         expect(m.size.resultRowIcon + m.spacing.rowVertical * 2, 22, "micro row pitch")
         expect(m.radius.row, 3, "micro row radius")
         expect(m.radius.panel, 12, "micro panel radius")
-        expect(m.size.bottomBarHeight, 32, "micro bottom bar")
+        expect(m.size.bottomBarHeight, 40, "micro bottom bar")
         expect(m.typography.rowTitle == Theme.Typography.rowTitle, "micro row titles are Theme's")
     }
 
