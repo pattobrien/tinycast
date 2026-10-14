@@ -15,8 +15,9 @@ We tested Tinycast against the 37 extensions installed in Raycast on the develop
 `Detail` with `Metadata`. `Form` with every field type: text, password, text area, checkbox,
 dropdown, tag picker, date picker, file picker, separator and description. A form dropdown can
 load its own choices as you type, with `onSearchTextChange`, `throttle`, `filtering` and
-`isLoading`. `ActionPanel` with sections and submenus, and `Action` with all its built-in variants.
-Older names still used by published extensions also work.
+`isLoading`. A form's link accessory sits at the right of the search bar and opens its target,
+`raycast://` links included. `ActionPanel` with sections and submenus, and `Action` with all its
+built-in variants. Older names still used by published extensions also work.
 
 **APIs.** `Clipboard`, `LocalStorage`, `Cache`, `environment`, `getPreferenceValues`, `showToast`,
 `showHUD`, `confirmAlert`, `closeMainWindow`, `popToRoot`, `clearSearchBar`, `open`, `trash`,

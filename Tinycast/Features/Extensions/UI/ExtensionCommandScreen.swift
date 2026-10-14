@@ -163,20 +163,32 @@ struct ExtensionCommandScreen: PaletteScreen {
 
     /// The `searchBarAccessory` dropdown; an empty one states and opens nothing, so it is none.
     var searchAccessory: ExtensionSearchAccessory? {
-        guard let accessory = ExtensionSearchAccessory(node: screen.searchBarAccessory),
-            !accessory.items.isEmpty
+        guard case .dropdown(let accessory) = searchBarAccessory, !accessory.items.isEmpty
         else { return nil }
         return accessory
     }
 
-    /// The header control for it, as an opaque box the palette only seats and toggles.
-    func searchAccessoryButton(
-        _ accessory: ExtensionSearchAccessory, isOpen: Bool, action: @escaping () -> Void
-    ) -> AnyView {
-        AnyView(
-            ExtensionSearchAccessoryButton(
-                accessory: accessory, value: extensions.accessorySelection(accessory),
-                assetsPath: assetsPath, isOpen: isOpen, action: action))
+    private var searchBarAccessory: ExtensionSearchBarAccessory? {
+        ExtensionSearchBarAccessory(node: screen.searchBarAccessory)
+    }
+
+    /// The `searchBarAccessory` as an opaque box the palette only seats and toggles.
+    func headerControl(isOpen: Bool, toggle: @escaping () -> Void) -> AnyView? {
+        switch searchBarAccessory {
+        case .dropdown:
+            guard let accessory = searchAccessory else { return nil }
+            return AnyView(
+                ExtensionSearchAccessoryButton(
+                    accessory: accessory, value: extensions.accessorySelection(accessory),
+                    assetsPath: assetsPath, isOpen: isOpen, action: toggle))
+        case .link(let link):
+            let extensions = extensions
+            return AnyView(
+                ExtensionLinkAccessoryButton(
+                    link: link, action: { extensions.dispatch(handler: link.onOpen) }))
+        case nil:
+            return nil
+        }
     }
 
     /// Its choices as a palette menu, so the arrows, ↵, Escape and the click-away come free.
