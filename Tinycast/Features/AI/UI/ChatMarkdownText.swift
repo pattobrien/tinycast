@@ -300,7 +300,7 @@ private final class ChatCodeHeader: NSView {
     func show(code: String, language: String?, metrics: InterfaceMetrics) {
         self.code = code
         label.stringValue = language ?? ""
-        label.font = metrics.typography.textNSFont(.caption1)
+        label.font = metrics.typography.textNSFont(.caption1, token: .keyCap)
     }
 
     override func layout() {

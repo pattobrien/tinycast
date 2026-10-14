@@ -310,9 +310,10 @@ struct InterfaceMetrics: Equatable, Sendable {
 
         /// The AppKit twin of a text style, for text an `NSTextView` draws beside SwiftUI's own.
         func textNSFont(
-            _ style: NSFont.TextStyle, weight: NSFont.Weight? = nil, monospaced: Bool = false
+            _ style: NSFont.TextStyle, token: InterfaceToken.Typography? = nil,
+            weight: NSFont.Weight? = nil, monospaced: Bool = false
         ) -> NSFont {
-            let base = nsFont(style)
+            let base = nsFont(style, token)
             if monospaced { return .monospacedSystemFont(ofSize: base.pointSize, weight: weight ?? .regular) }
             guard let weight else { return base }
             return .systemFont(ofSize: base.pointSize, weight: weight)
