@@ -622,6 +622,15 @@ For view commands, nonempty `fallbackText` also prefills the search field: lists
 locally or receive it through `onSearchTextChange` when their handler mounts. It remains available
 in the view command's launch props as well.
 
+`frame=x,y,width,height` opens the palette over the caller instead of at its usual spot. Any claimed
+link may carry it, including the bare `tinycast://` that only reopens the launcher. The rect is in
+window-server points with the origin at the primary display's top-left, which is what
+`CGWindowListCopyWindowInfo` reports. The palette centres over the rect with its top edge the
+default's margin fraction below the rect's top, then clamps to the visible frame of the display that
+holds most of the rect. It lasts one summon: an open palette moves at once, a drag while it holds is
+never persisted, and hiding drops it. A malformed `frame` is ignored. `PalettePlacementRequest` parses
+it and `PalettePlacement.anchor(within:…)` places it.
+
 ## Background refresh
 
 A `no-view` command declaring `interval` (`"90s"`, `"1m"`, `"12h"`, `"1d"`) re-runs headlessly on that

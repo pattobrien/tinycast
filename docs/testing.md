@@ -797,6 +797,9 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
   the field shows `beta`; a locally filtered List/Grid shows matching rows, and a command using
   `onSearchTextChange` receives the query when it mounts. Repeat without fallback text: the field
   starts empty. A no-view command receives the prop without prefilling the search field.
+- At the Default Interface Size, open `tinycast://?frame=0,0,1000,600` with the palette hidden and
+  already open: on the primary display its left edge sits 125pt in and its top edge 108pt down. Drag
+  it, hide it, then summon with the hotkey: it opens at its usual spot, not where it was dropped.
 - Every command under Settings ▸ Extensions has Add Alias, and Record Hotkey when the mode is
   supported; an alias set there finds the command from its start and shows the chip
 - Hiding the extension from the launcher, or turning off Show in launcher, dims its alias fields
