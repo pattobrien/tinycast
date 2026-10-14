@@ -430,6 +430,7 @@ run window-room-test       Tinycast/Features/WindowManagement/Model/WindowComman
                            Tinycast/Features/WindowManagement/Model/RoomPlan.swift \
                            Tinycast/Features/WindowManagement/Model/RoomArrangement.swift \
                            Tinycast/Features/WindowManagement/Model/RoomStore.swift \
+                           Tinycast/Features/WindowManagement/Model/RoomDeepLink.swift \
                            Tinycast/Features/WindowManagement/Model/RoomMinimumSizeStore.swift \
                            Tinycast/Features/WindowManagement/Model/RoomParkingLedger.swift
 run window-file-test       Tinycast/Features/WindowManagement/Model/WindowCommand.swift \

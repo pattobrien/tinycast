@@ -34,6 +34,13 @@ final class RoomStore {
         return rooms.first { $0.name.compare(trimmed, options: .caseInsensitive) == .orderedSame }
     }
 
+    func room(linkedBy link: RoomDeepLink) -> Room? {
+        switch link {
+        case .id(let id): room(id: id)
+        case .name(let name): room(named: name)
+        }
+    }
+
     /// Window IDs other rooms hold, so a room missing a window takes a free one first.
     func claimedWindowIDs(excluding id: UUID?) -> Set<UInt32> {
         Set(rooms.filter { $0.id != id }.flatMap { $0.windows.compactMap(\.windowID) })

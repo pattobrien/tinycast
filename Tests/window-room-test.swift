@@ -130,6 +130,7 @@ struct WindowRoomTests {
         layoutChoices()
         roomRecord()
         storeCRUD()
+        deepLinks()
         minimumSizeStore()
         parkingLedger()
         print("\(passes)/\(passes + failures) passed")
@@ -854,6 +855,45 @@ struct WindowRoomTests {
         expect(
             edited.windows.map(\.windowID) == [12, nil],
             "a window's number returns only to a window of the same app")
+    }
+
+    static func deepLinks() {
+        let id = UUID(uuidString: "7D2E4C1A-0B3F-4E5D-9A8B-1C2D3E4F5A6B")!
+        let parsed = { (text: String) in URL(string: text).flatMap(RoomDeepLink.init(url:)) }
+        expect(
+            parsed("tinycast://window-room/7D2E4C1A-0B3F-4E5D-9A8B-1C2D3E4F5A6B") == .id(id), "a UUID link")
+        expect(
+            parsed("tinycast://window-room/7d2e4c1a-0b3f-4e5d-9a8b-1c2d3e4f5a6b") == .id(id),
+            "a lowercase UUID")
+        expect(parsed("TinyCast://Window-Room/My%20Room") == .name("My Room"), "scheme and host ignore case")
+        expect(
+            parsed("tinycast://window-room/A%2FB%20%E2%80%94%20%C3%A9") == .name("A/B — é"), "names decode")
+        expect(parsed("tinycast://window-room/") == nil, "a link names a room")
+        expect(parsed("tinycast://window-room") == nil, "a bare host names no room")
+        expect(parsed("tinycast://extensions/raycast/x/y") == nil, "other hosts are not rooms")
+        expect(parsed("raycast://window-room/Build") == nil, "only tinycast links open rooms")
+        expect(
+            RoomDeepLink.id(id).url.absoluteString
+                == "tinycast://window-room/7D2E4C1A-0B3F-4E5D-9A8B-1C2D3E4F5A6B",
+            "a room's link spells its UUID")
+        for link in [RoomDeepLink.id(id), .name("A/B — é"), .name("My Room")] {
+            expect(RoomDeepLink(url: link.url) == link, "\(link) survives its own link")
+        }
+
+        let suite = "tinycast-window-room-test-\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suite) else {
+            return expect(false, "a scratch suite opens")
+        }
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = RoomStore(defaults: defaults)
+        _ = try? store.add(Room(id: id, name: "My Room", windows: [window("a")]))
+        _ = try? store.add(Room(name: "A/B — é", windows: [window("b")]))
+        expect(store.room(linkedBy: .id(id))?.name == "My Room", "a UUID finds its room")
+        expect(store.room(linkedBy: .name("my ROOM"))?.id == id, "a name finds its room regardless of case")
+        expect(store.room(linkedBy: .name("A/B — é"))?.name == "A/B — é", "a decoded name finds its room")
+        expect(store.room(linkedBy: .name("Nowhere")) == nil, "an unknown name finds nothing")
+        expect(store.room(linkedBy: .id(UUID())) == nil, "an unknown UUID finds nothing")
+        expect(store.room(linkedBy: .name(id.uuidString)) == nil, "a UUID is not a name")
     }
 
     static func storeCRUD() {

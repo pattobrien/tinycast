@@ -180,6 +180,11 @@ then prints the window-server number (`CGWindowID`, decimal) as its first line a
   between the window-layout and window-command slices; `LauncherList.rows` mirrors that order.
 - **`HotKeyAction.windowRoom(id:)`**, persisted under `hotkey.windowRoom.<uuid>` with a
   `boundWindowRoomIDs` index, dispatched to `enterRoom(id:)`.
+- **`tinycast://window-room/<uuid-or-name>`** enters a room from a script, a Shortcut or a browser.
+  `AppCore.handleOpenURL` hands it to `RoomCoordinator.enterRoom(linkedBy:)` before the extension
+  schemes see it. `RoomDeepLink` parses it with the scheme and host in any case; a name is
+  percent-decoded and found regardless of case, as `RoomStore.room(named:)` finds any name. An
+  unknown room says so in a notice. The UUID form is the `url` every launcher entry already carries.
 - **Commands**: Switch Room and Create Room, owned by
   `SettingsTab.windowManagement` and gated with the feature.
 - **Settings**: `windowRoomsShowInLauncher` (on), which also dims each room row's alias field, and
@@ -198,7 +203,7 @@ filling, arrangement reading and learning, window matching, parking corners and 
 plan's placements, parks and fallbacks, Tab's choices, the record's Codable, and all three stores
 with a scratch suite and a temporary directory.
 
-The resolver's parse, and a resolved number winning over a title, are in the same harness;
+The resolver's parse, a resolved number winning over a title, and room links are in the same harness;
 `custom-command-test` covers the runner's timeout.
 
 `RoomWindowSweep`, `RoomRunner` and the preview need the manual sweep in

@@ -256,7 +256,7 @@ extension AppEntry {
     init(_ room: Room) {
         self.init(
             id: room.entryID, name: room.name,
-            url: URL(string: "tinycast://window-room/" + room.id.uuidString)!,
+            url: RoomDeepLink.id(room.id).url,
             bundleID: nil, kind: .windowRoom)
     }
 

@@ -468,6 +468,7 @@ final class AppCore {
     }
 
     func handleOpenURL(_ url: URL) {
+        if let link = RoomDeepLink(url: url) { return roomCoordinator.enterRoom(linkedBy: link) }
         guard ExtensionDeepLink.claims(url) else { return }
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
         if let placement = PalettePlacementRequest.parse(items) {

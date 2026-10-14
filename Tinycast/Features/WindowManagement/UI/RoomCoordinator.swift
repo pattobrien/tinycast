@@ -231,6 +231,22 @@ final class RoomCoordinator {
         }
     }
 
+    func enterRoom(linkedBy link: RoomDeepLink) {
+        guard let room = store.room(linkedBy: link) else {
+            let message =
+                switch link {
+                case .id: "The room this link opens was deleted."
+                case .name(let name): "No room is named “\(name)”."
+                }
+            Task {
+                await core.showNotice(
+                    title: "Couldn't Find That Room", message: message, symbol: Room.sfSymbol, tone: .danger)
+            }
+            return
+        }
+        enterRoom(id: room.id)
+    }
+
     func setResolversEnabled(_ enabled: Bool) {
         guard enabled != settings.windowRoomResolversEnabled else { return }
         guard enabled else {
