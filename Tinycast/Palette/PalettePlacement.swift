@@ -36,7 +36,8 @@ enum PalettePlacement {
             x: stored.x, y: stored.y - graspable.height,
             width: graspable.width, height: graspable.height)
         let shown = visibleFrame.intersection(bar)
-        return !shown.isNull && shown.width >= minimumVisible && shown.height >= minimumVisible
+        let minimumHeight = min(minimumVisible, graspable.height)
+        return !shown.isNull && shown.width >= minimumVisible && shown.height >= minimumHeight
             ? stored : nil
     }
 
