@@ -75,9 +75,12 @@ no appcast: the release feed the website already reads is the feed the app reads
 | `com.tinycast.app.beta` | `.beta` | prereleases |
 | anything else | `.development` | nothing |
 
-`AppVersion` parses `MAJOR.MINOR.PATCH` and `MAJOR.MINOR.PATCH-beta.N` with semver precedence: a
-prerelease sorts below the release it leads to, and `beta.10` above `beta.9`. Everything else parses
-to nil, so an off-shape tag can never be offered as an update. A release whose tag disagrees with
+`AppVersion` parses `MAJOR.MINOR.PATCH`, optionally `-beta.N`, then optionally `-fork.M`, with
+semver precedence: a prerelease sorts below the release it leads to, and `beta.10` above `beta.9`. A
+fork build sorts above the upstream version it was cut from and below the next one, so
+`0.11.21-beta.120 < 0.11.21-beta.120-fork.1 < 0.11.21 < 0.11.21-fork.1`. A fork counter never makes a
+version a prerelease; only `beta` does. Everything else parses to nil, so an off-shape tag can never
+be offered as an update. A release whose tag disagrees with
 its `prerelease` flag is treated as mis-published and skipped.
 
 The Intel build is *not* a channel. It shares the stable tag, version, bundle id and signature, so it

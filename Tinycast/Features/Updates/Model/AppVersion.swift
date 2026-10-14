@@ -1,12 +1,14 @@
 import Foundation
 
-/// A released version: `MAJOR.MINOR.PATCH`, optionally `-beta.N`, ordered by semver precedence.
+/// A released version: `MAJOR.MINOR.PATCH`, optionally `-beta.N`, then optionally `-fork.M`.
 struct AppVersion: Comparable, Hashable, Sendable, CustomStringConvertible {
     let major: Int
     let minor: Int
     let patch: Int
     /// Nil on a stable release, which outranks every prerelease of the same triple.
     let beta: Int?
+    /// A fork build sorts just above the upstream version it was cut from.
+    let fork: Int?
 
     init?(_ text: String) {
         var body = Substring(text.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -21,15 +23,13 @@ struct AppVersion: Comparable, Hashable, Sendable, CustomStringConvertible {
             let patch = Self.number(numbers[2])
         else { return nil }
 
-        if halves.count == 2 {
-            // `beta` is the only prerelease channel that ships, so anything else is unreadable.
-            let suffix = halves[1].split(separator: ".", omittingEmptySubsequences: false)
-            guard suffix.count == 2, suffix[0] == "beta", let count = Self.number(suffix[1])
-            else { return nil }
-            beta = count
-        } else {
-            beta = nil
+        var labels = halves.dropFirst().flatMap {
+            $0.split(separator: "-", omittingEmptySubsequences: false)
         }
+        // `beta` is the only prerelease channel that ships, so anything else is unreadable.
+        beta = Self.counter(named: "beta", in: &labels)
+        fork = Self.counter(named: "fork", in: &labels)
+        guard labels.isEmpty else { return nil }
         self.major = major
         self.minor = minor
         self.patch = patch
@@ -39,7 +39,8 @@ struct AppVersion: Comparable, Hashable, Sendable, CustomStringConvertible {
 
     var description: String {
         let triple = "\(major).\(minor).\(patch)"
-        return beta.map { "\(triple)-beta.\($0)" } ?? triple
+        let prerelease = beta.map { "-beta.\($0)" } ?? ""
+        return triple + prerelease + (fork.map { "-fork.\($0)" } ?? "")
     }
 
     static func < (lhs: Self, rhs: Self) -> Bool {
@@ -47,12 +48,26 @@ struct AppVersion: Comparable, Hashable, Sendable, CustomStringConvertible {
         if lhs.minor != rhs.minor { return lhs.minor < rhs.minor }
         if lhs.patch != rhs.patch { return lhs.patch < rhs.patch }
         switch (lhs.beta, rhs.beta) {
-        case (nil, nil): return false
+        case (nil, nil): break
         // A prerelease leads to its release, so it sorts below one and never above it.
         case (.some, nil): return true
         case (nil, .some): return false
+        case (.some(let left), .some(let right)) where left != right: return left < right
+        case (.some, .some): break
+        }
+        switch (lhs.fork, rhs.fork) {
+        case (nil, nil), (.some, nil): return false
+        case (nil, .some): return true
         case (.some(let left), .some(let right)): return left < right
         }
+    }
+
+    private static func counter(named name: String, in labels: inout [Substring]) -> Int? {
+        guard let label = labels.first else { return nil }
+        let parts = label.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 2, parts[0] == name, let count = number(parts[1]) else { return nil }
+        labels.removeFirst()
+        return count
     }
 
     /// Rejects a signed or padded field, which `Int` would silently reinterpret.
