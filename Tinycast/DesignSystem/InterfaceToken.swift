@@ -64,4 +64,25 @@ enum InterfaceToken: Hashable, Sendable, CaseIterable {
         guard let token = Self.byKey[key] else { return nil }
         self = token
     }
+
+    /// A font needs some size to draw at; any other length may collapse to nothing.
+    func accepts(_ points: Double) -> Bool {
+        guard points.isFinite else { return false }
+        if case .typography = self { return points > 0 }
+        return points >= 0
+    }
+
+    /// As UserDefaults and backups hold them; a key or value no token accepts is dropped.
+    static func overrides(stored: [String: Double]) -> [InterfaceToken: CGFloat] {
+        var overrides: [InterfaceToken: CGFloat] = [:]
+        for (key, points) in stored {
+            guard let token = InterfaceToken(key: key), token.accepts(points) else { continue }
+            overrides[token] = CGFloat(points)
+        }
+        return overrides
+    }
+
+    static func stored(_ overrides: [InterfaceToken: CGFloat]) -> [String: Double] {
+        Dictionary(uniqueKeysWithValues: overrides.map { token, points in (token.key, Double(points)) })
+    }
 }

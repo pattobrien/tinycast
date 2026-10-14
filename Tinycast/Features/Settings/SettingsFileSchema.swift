@@ -38,6 +38,7 @@ enum SettingsFileSchema {
         case .supportReminders: return bind(settings, \.supportRemindersEnabled)
         case .appearance: return bind(settings, \.appearance)
         case .interfaceSize: return bind(settings, \.interfaceSize)
+        case .interfaceOverrides: return interfaceOverrides(key, settings)
         case .compactMode: return bind(settings, \.compactMode)
         case .showFavoritesInCompactMode: return bind(settings, \.showFavoritesInCompactMode)
         case .openOnCursorScreen: return bind(settings, \.openOnCursorScreen)
@@ -149,6 +150,23 @@ enum SettingsFileSchema {
         case .calendarCommands: return launcher.commandsBinding(for: key, owner: .calendar)
         case .extensionsShowInLauncher: return bind(settings, \.extensionsShowInLauncher)
         }
+    }
+
+    private static func interfaceOverrides(
+        _ key: SettingsFileKey, _ settings: AppSettings
+    ) -> SettingsFileBinding {
+        SettingsFileBinding(
+            key, read: { InterfaceOverridesFileFormat.json(settings.interfaceOverrides) },
+            write: { json in
+                guard
+                    let decoded = InterfaceOverridesFileFormat.overrides(
+                        from: json, current: settings.interfaceOverrides)
+                else { return [.invalidValue(key)] }
+                if settings.interfaceOverrides != decoded.overrides {
+                    settings.interfaceOverrides = decoded.overrides
+                }
+                return decoded.problems.map { .invalidEntry(key, $0) }
+            })
     }
 
     /// A folder is absolute or under `~/`; null puts it back in Application Support.

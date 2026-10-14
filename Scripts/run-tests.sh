@@ -134,6 +134,7 @@ run launcher-settings-file-test \
                            Tinycast/Features/Launcher/Service/VisibilityStore.swift \
                            Tinycast/Features/Settings/SettingsTab.swift \
                            Tinycast/Features/Settings/Model/*.swift \
+                           Tinycast/DesignSystem/InterfaceToken.swift \
                            Tinycast/Features/HotKeys/Service/HotKeySettingsFile.swift \
                            Tinycast/Features/HotKeys/Service/KeyShortcut.swift \
                            Tinycast/Features/HotKeys/Model/HotKeyAction.swift \
@@ -222,7 +223,9 @@ run interface-overrides-test Tinycast/Platform/Appearance.swift \
                            Tinycast/DesignSystem/Theme.swift \
                            Tinycast/DesignSystem/InterfaceMetrics.swift \
                            Tinycast/DesignSystem/InterfaceToken.swift \
-                           Tinycast/Features/Settings/InterfaceSize.swift
+                           Tinycast/Features/Settings/InterfaceSize.swift \
+                           Tinycast/Features/Settings/Model/SettingsFileJSON.swift \
+                           Tinycast/Features/Settings/Model/InterfaceOverridesFileFormat.swift
 run palette-placement-test Tinycast/Platform/Appearance.swift \
                            Tinycast/DesignSystem/Theme.swift \
                            Tinycast/DesignSystem/InterfaceMetrics.swift \
@@ -563,6 +566,7 @@ run hotkey-dispatch-test   Tinycast/Features/HotKeys/Model/DoubleTapModifier.swi
                            Tinycast/Platform/ASCIIKeyboardLayout.swift \
                            Tests/hotkey-dispatch-fixtures.swift
 run settings-file-test     Tinycast/Features/Settings/Model/*.swift \
+                           Tinycast/DesignSystem/InterfaceToken.swift \
                            Tinycast/Features/Settings/Service/SettingsFileMonitor.swift \
                            Tinycast/Features/Settings/Service/SettingsFileRepository.swift \
                            Tinycast/Platform/AppPaths.swift

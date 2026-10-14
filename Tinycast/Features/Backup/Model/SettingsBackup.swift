@@ -38,6 +38,7 @@ struct SettingsBackup: Codable {
         var appearance: String?
         var calcNumberStyle: String?
         var interfaceSize: String?
+        var interfaceOverrides: [String: Double]?
         var compactMode: Bool?
         var showFavoritesInCompactMode: Bool?
         var searchScopes: [String]?
@@ -149,6 +150,7 @@ extension SettingsBackup {
             appearance: s.appearance.rawValue,
             calcNumberStyle: s.calcNumberStyle.rawValue,
             interfaceSize: s.interfaceSize.rawValue,
+            interfaceOverrides: InterfaceToken.stored(s.interfaceOverrides),
             compactMode: s.compactMode,
             showFavoritesInCompactMode: s.showFavoritesInCompactMode,
             searchScopes: s.searchScopes,
@@ -363,6 +365,10 @@ extension SettingsBackup {
         }
         if let raw = s.interfaceSize, let size = InterfaceSize(rawValue: raw) {
             settings.interfaceSize = size
+            count += 1
+        }
+        if let stored = s.interfaceOverrides {
+            settings.interfaceOverrides = InterfaceToken.overrides(stored: stored)
             count += 1
         }
         if let raw = s.appearance, let appearance = AppAppearance(rawValue: raw) {

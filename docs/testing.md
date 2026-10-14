@@ -120,7 +120,7 @@ If a change touches anything in the right column, the harness on the left is man
 | `palette-navigation-test` | `Palette/PaletteState.swift`'s screen motions — `prepare`, `replace`, `push`, `pop` — and hover arming, pointer drift, scroll disarming and highlight tokens |
 | `palette-selection-test` | `Features/PaletteRowIndex.swift` |
 | `interface-size-test` | `DesignSystem/InterfaceMetrics.swift`, `Features/Settings/InterfaceSize.swift`, `Extensions/Model/ExtensionFormMetrics.swift` |
-| `interface-overrides-test` | `DesignSystem/InterfaceToken.swift` and its overrides in `InterfaceMetrics.swift` — every token honoured, every property tokened, derived tokens following their inputs |
+| `interface-overrides-test` | `DesignSystem/InterfaceToken.swift` and its overrides in `InterfaceMetrics.swift` — every token honoured, every property tokened, derived tokens following their inputs — plus `Settings/Model/InterfaceOverridesFileFormat.swift` and the key list in `features/settings-file.md` |
 | `form-input-test` | Native field/textarea sizing, editing alignment, placeholders, Tab, Unicode selection, undo and code fonts |
 | `palette-placement-test` | `DesignSystem/Theme.swift`, `Palette/PalettePlacement.swift` |
 | `palette-menu-click-test` | `Palette/PalettePanel.swift` — complete click-away presses and subsequent control activation |
