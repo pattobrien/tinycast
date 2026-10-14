@@ -14,8 +14,8 @@ in `Features/Settings/` (`Model/`, `Service/`, `SettingsFileSchema.swift`), the 
 - **Off by default, and only the pane turns it on.** `settingsFileEnabled` has no key in the file and is
   excluded from backups: a file or an import must never switch on something that reads a file.
 - **A capability grant never has a key.** Snippets, Extensions, Calendar access, Auto Join, Camera
-  Preview, Quick Actions, MCP and clipboard text recognition are switched on only in the app, which
-  asks first. `settings-file-test` checks those paths stay absent.
+  Preview, Quick Actions, MCP, clipboard text recognition and room resolvers are switched on only in
+  the app, which asks first. `settings-file-test` checks those paths stay absent.
 - **`SettingsFileSchema`'s switch is exhaustive.** A new `SettingsFileKey` case fails to build until it
   is bound to a property.
 - **A bad edit never costs a setting.** A key the file leaves out keeps its value; a value Tinycast
@@ -174,9 +174,10 @@ in `commands.builtIn` — by their ID after `command:`. App Launcher and Dictati
   app's `width` and `height` are fractions of its display, in full precision.
 - A room's window numbers and when it was last entered stay out of the file, and survive an edit to
   the room: `Room.keepingRuntime(of:)` returns a number only to a window of the same app.
-- A room window's **`resolve`** is a shell command that names its window on entry, `null` when it has
-  none. A room's `windows` replace its windows whole, so a window that leaves a field out gets that
-  field's default — no resolver, for `resolve` — and blank text reads as `null`.
+- A room window's **`resolve`** is a shell command that names its window on entry
+  ([Resolvers](window-rooms.md#resolvers)), `null` when it has none. A room's `windows` replace its
+  windows whole, so a window that leaves a field out gets that field's default — no resolver, for
+  `resolve` — and blank text reads as `null`.
 
 ## Appearance overrides
 

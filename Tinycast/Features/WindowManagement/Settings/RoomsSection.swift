@@ -13,6 +13,10 @@ struct RoomsSection: View {
                 SettingsRowTitle(.windowManagementRooms, "Show rooms in launcher")
             }
 
+            Toggle(isOn: resolversBinding) {
+                SettingsRowTitle(.windowManagementRooms, "Run window resolvers")
+            }
+
             if store.rooms.isEmpty {
                 Text("Save a project's windows as a room, then walk into it with one shortcut.")
                     .foregroundStyle(.secondary)
@@ -30,6 +34,12 @@ struct RoomsSection: View {
         } header: {
             SettingsSectionHeader(.windowManagementRooms)
         }
+    }
+
+    private var resolversBinding: Binding<Bool> {
+        Binding(
+            get: { settings.windowRoomResolversEnabled },
+            set: { coordinator.setResolversEnabled($0) })
     }
 }
 

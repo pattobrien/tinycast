@@ -425,6 +425,7 @@ run window-room-test       Tinycast/Features/WindowManagement/Model/WindowComman
                            Tinycast/Features/WindowManagement/Model/RoomWindow.swift \
                            Tinycast/Features/WindowManagement/Model/Room.swift \
                            Tinycast/Features/WindowManagement/Model/RoomWindowMatcher.swift \
+                           Tinycast/Features/WindowManagement/Model/RoomWindowResolver.swift \
                            Tinycast/Features/WindowManagement/Model/RoomParking.swift \
                            Tinycast/Features/WindowManagement/Model/RoomPlan.swift \
                            Tinycast/Features/WindowManagement/Model/RoomArrangement.swift \

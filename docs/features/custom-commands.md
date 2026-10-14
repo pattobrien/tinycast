@@ -121,7 +121,7 @@ returns non-zero, and a launchd-launched app has no controlling terminal, so `/d
 `device not configured`. A dev build launched _from a terminal_ inherits that terminal's tty, so an rc
 file reading `/dev/tty` can hang there but not for real users. There is **no timeout** — Tinycast never kills a
 running command except through the output window's Stop button, and a command outlives Tinycast
-quitting.
+quitting. `run` takes an optional one that only [room resolvers](window-rooms.md#resolvers) pass.
 
 Because standard error surfaces only on a non-zero exit and only its last 8 KiB, rc-file startup noise
 is dropped while the actual error survives.

@@ -30,6 +30,8 @@ struct RoomWindow: Codable, Hashable, Sendable {
         self.resolve = resolve
     }
 
+    var displayName: String { title.isEmpty ? appName : title }
+
     /// Four decimal places, so a stored fraction reads cleanly and resolves to the same point.
     static func unitFrame(of frame: CGRect, in visible: CGRect) -> CGRect {
         guard visible.width > 0, visible.height > 0 else {

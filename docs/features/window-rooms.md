@@ -52,6 +52,7 @@ under its MIT licence; [NOTICE.md](../../NOTICE.md) lists the adapted files.
 | `Model/RoomGrid.swift` | **Pure.** A room's own arrangement on a 12 × 12 grid with even gaps |
 | `Model/RoomArrangement.swift` | **Pure.** Reads a hand-made arrangement; rebuilds a room from open windows |
 | `Model/RoomWindowMatcher.swift` | **Pure.** Which open window fills which room window |
+| `Model/RoomWindowResolver.swift` | **Pure.** A resolver's output read as a window number, or why not |
 | `Model/RoomParking.swift` | **Pure.** The parking corner and the way back on a connected display |
 | `Model/RoomPlan.swift` | **Pure.** What entering does, and the layouts Tab offers |
 | `Model/RoomStore.swift` | The library, as JSON in `UserDefaults` (`windowRooms`) |
@@ -130,8 +131,8 @@ flip. The panels are released on hide, so memory returns to baseline with the pa
 `RoomCoordinator.enterRoom(id:)` is the one funnel for a Rooms row, a launcher entry, a shortcut
 and Settings' Enter button. It hides the palette with `restoreFocus: false`, then `RoomRunner.enter`:
 
-1. Prompts for Accessibility once, launches the room's apps that are not running, unhides the
-   hidden ones and waits up to 600 ms for them to come back.
+1. Prompts for Accessibility once, runs the room's [resolvers](#resolvers), launches the room's
+   apps that are not running, unhides the hidden ones and waits up to 600 ms for them to come back.
 2. Sweeps and plans on the palette's display (`openOnCursorScreen` decides, as for the palette);
    a launched or just-unhidden app is waited on — 10 s or 600 ms — for its windows.
 3. Places every window in one step, one `AXEnhancedUserInterface` suppression per app, through
@@ -149,6 +150,30 @@ window is a notice — and steps nothing back, since hiding everything around an
 leave an empty desk. Switching the feature off unhides the apps rooms hid first and waits for them
 to come back before returning parked windows.
 
+## Resolvers
+
+A room window may carry `resolve`, a shell command that names exactly which window it is — one of two
+terminal windows, a Chrome window holding one tab. It may act first, such as focusing a workspace,
+then prints the window-server number (`CGWindowID`, decimal) as its first line and exits 0.
+
+- **Every resolver runs before anything moves**, all at once, through `ShellCommandRunner.run`:
+  `zsh -lc`, the home folder, no arguments, `TINYCAST=1`, each given 3 s before it is stopped.
+- **A resolved number stands in for the window's own, for this entry only**, so the matcher's first
+  pass picks it over any title; a window that kept the same number loses it. Nothing resolved is
+  stored.
+- **A failure never blocks entry.** A non-zero exit, a timeout, a shell that could not start, or a
+  first line that is empty or not a number above 0 leaves the window to the matcher as if it had no
+  resolver, and a number no window of its app has falls through to titles the same way. The message
+  names each such window, by title or else by app: `Build — Docs not resolved`.
+- **Off by default.** `windowRoomResolversEnabled` is switched on only in Settings › Window
+  Management › Rooms, through `DialogController`, and has no settings-file key and no place in a
+  backup. While it is off, nothing runs and a room with a resolver says so once:
+  `Build — resolvers are off in Settings`.
+- **No pane edits one**; the [settings file](settings-file.md) does. Choose Windows and Remember
+  Arrangement keep each window's resolver — `RoomArrangement.learn` carries it to whichever open
+  window fills that member, and a closed member saved as its app keeps it. A backup carries a
+  room's resolvers, never the switch.
+
 ## Wiring
 
 - **`AppEntry.Kind.windowRoom`**, entries `window-room:<uuid>`, published by `AppIndex.setWindowRooms`
@@ -157,7 +182,8 @@ to come back before returning parked windows.
   `boundWindowRoomIDs` index, dispatched to `enterRoom(id:)`.
 - **Commands**: Switch Room and Create Room, owned by
   `SettingsTab.windowManagement` and gated with the feature.
-- **Settings**: `windowRoomsShowInLauncher` (on), which also dims each room row's alias field. Rooms
+- **Settings**: `windowRoomsShowInLauncher` (on), which also dims each room row's alias field, and
+  `windowRoomResolversEnabled` (off, [Resolvers](#resolvers)). Rooms
   and their shortcuts ride in settings backups; learned minimum sizes and the ledger do not — one is
   a cache, the other this Mac's state.
   The [settings file](settings-file.md) carries rooms without their window numbers or entry times, and
@@ -171,6 +197,9 @@ or leaves the canvas), gap 0 and gapped tiling, absurd and non-finite gaps, the 
 filling, arrangement reading and learning, window matching, parking corners and ways back, the
 plan's placements, parks and fallbacks, Tab's choices, the record's Codable, and all three stores
 with a scratch suite and a temporary directory.
+
+The resolver's parse, and a resolved number winning over a title, are in the same harness;
+`custom-command-test` covers the runner's timeout.
 
 `RoomWindowSweep`, `RoomRunner` and the preview need the manual sweep in
 [testing.md](../testing.md#manual-regression-sweep): make a room from the palette; Tab through its
