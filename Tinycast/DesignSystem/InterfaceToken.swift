@@ -65,11 +65,12 @@ enum InterfaceToken: Hashable, Sendable, CaseIterable {
         self = token
     }
 
+    static let maximumPoints: Double = 10_000
+
     /// A font needs some size to draw at; any other length may collapse to nothing.
     func accepts(_ points: Double) -> Bool {
-        guard points.isFinite else { return false }
-        if case .typography = self { return points > 0 }
-        return points >= 0
+        if case .typography = self { return points > 0 && points <= Self.maximumPoints }
+        return (0...Self.maximumPoints).contains(points)
     }
 
     /// As UserDefaults and backups hold them; a key or value no token accepts is dropped.

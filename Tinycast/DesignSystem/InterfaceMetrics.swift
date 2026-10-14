@@ -226,7 +226,7 @@ struct InterfaceMetrics: Equatable, Sendable {
         var dialogWidth: CGFloat { points(.dialogWidth, Theme.Size.dialogWidth) }
         var dialogButtonHeight: CGFloat {
             let reduction = scaledPoints(Theme.Size.menuButton - Theme.Size.dialogButtonHeight, scale)
-            return overrides[.size(.dialogButtonHeight)] ?? menuButton - reduction
+            return overrides[.size(.dialogButtonHeight)] ?? max(menuButton - reduction, 0)
         }
         var dialogSymbol: CGFloat { points(.dialogSymbol, Theme.Size.dialogSymbol) }
         var dialogSymbolContainer: CGFloat {

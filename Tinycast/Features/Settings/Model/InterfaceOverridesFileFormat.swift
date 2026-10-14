@@ -26,7 +26,7 @@ enum InterfaceOverridesFileFormat {
             }
             guard let points = member.value.number, token.accepts(points) else {
                 decoded.overrides[token] = current[token]
-                decoded.problems.append("“\(member.key)” must be a number of points, \(range(of: token))")
+                decoded.problems.append("“\(member.key)” must be a number of points \(range(of: token))")
                 continue
             }
             decoded.overrides[token] = CGFloat(points)
@@ -35,7 +35,8 @@ enum InterfaceOverridesFileFormat {
     }
 
     private static func range(of token: InterfaceToken) -> String {
-        if case .typography = token { return "more than 0" }
-        return "0 or more"
+        let maximum = Int(InterfaceToken.maximumPoints)
+        if case .typography = token { return "more than 0 and at most \(maximum)" }
+        return "from 0 to \(maximum)"
     }
 }

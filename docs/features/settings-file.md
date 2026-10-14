@@ -201,14 +201,15 @@ token's path in `InterfaceMetrics` and `Theme`, its group then its name:
 - **A derived token follows its inputs unless it is set itself.** `size.compactHeight` is
   `size.headerHeight` plus twice `size.headerPadding`, `size.menuRowHeight` is `size.menuIcon` plus
   twice `spacing.md`, `size.menuRowsMaxHeight` counts 5.5 of those rows, and `size.dialogButtonHeight`
-  stays the scaled reduction below `size.menuButton`.
+  stays the scaled reduction below `size.menuButton`, never below 0.
 - **The object is the whole set.** A token it leaves out is cleared, so `{}` clears every override;
   leaving `overrides` out of the file keeps the current ones. No pane edits them, and the app writes
   them in the order below.
 - **A bad entry costs nothing.** An unknown key is reported and ignored, as
-  `no design token is called “spacing.bogus”`. A value that is not a number, or is negative, keeps
-  the token's current override and is reported, as
-  `“radius.row” must be a number of points, 0 or more`; a `typography` value must be more than 0.
+  `no design token is called “spacing.bogus”`. A value that is not a number, is negative or is over
+  10000 keeps the token's current override and is reported, as
+  `“radius.row” must be a number of points from 0 to 10000`; a `typography` value must be more
+  than 0.
   An `overrides` that is not an object changes nothing and is reported.
 - A backup carries the overrides, and an import drops an entry these rules would refuse.
 
