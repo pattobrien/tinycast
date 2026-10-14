@@ -39,6 +39,7 @@ struct ExtensionSearchAccessoryTests {
         seeding()
         searchContract()
         pickerChosen()
+        searchBarAccessories()
         storageIsolation()
         print(failures == 0 ? "\nALL PASSED" : "\n\(failures) FAILED")
         print("\(passes) passed, \(failures) failed")
@@ -85,6 +86,61 @@ struct ExtensionSearchAccessoryTests {
 
     static func parse(_ json: String) -> ExtensionSearchAccessory? {
         ExtensionSearchAccessory(node: node(json).node("searchBarAccessory"))
+    }
+
+    static func formJSON(_ linkProps: String) -> String {
+        """
+        {"id":2,"type":"Form","props":{
+            "searchBarAccessory":{"id":5,"type":"Form.LinkAccessory","props":{\(linkProps)},
+                "children":[]}},
+            "children":[]}
+        """
+    }
+
+    static func searchBarAccessories() {
+        func accessory(_ json: String) -> ExtensionSearchBarAccessory? {
+            ExtensionSearchBarAccessory(node: node(json).node("searchBarAccessory"))
+        }
+        let link = formJSON(
+            #""target":"https://linear.app/settings/api","text":"Get API key","#
+                + #""onTinycastOpen":{"$fn":"5:onTinycastOpen"}"#)
+        guard case .link(let parsed) = accessory(link) else {
+            check("a Form.LinkAccessory parses as a link", false)
+            return
+        }
+        check("a Form.LinkAccessory parses as a link", true)
+        check("the link keeps its target", parsed.target == "https://linear.app/settings/api")
+        check("the link keeps its text", parsed.text == "Get API key")
+        check("the link opens through the runtime", parsed.onOpen == "5:onTinycastOpen")
+
+        let untitled = formJSON(
+            #""target":"raycast://extensions/raycast/raycast/search","#
+                + #""onTinycastOpen":{"$fn":"5:onTinycastOpen"}"#)
+        guard case .link(let bare) = accessory(untitled) else {
+            check("a link without text still parses", false)
+            return
+        }
+        check(
+            "a link without text reads as its target",
+            bare.text == "raycast://extensions/raycast/raycast/search", bare.text)
+
+        let targetless = formJSON(
+            #""text":"Get API key","onTinycastOpen":{"$fn":"5:onTinycastOpen"}"#)
+        check("a link with no target is no accessory", accessory(targetless) == nil)
+        let empty = formJSON(
+            #""target":"","text":"Get API key","onTinycastOpen":{"$fn":"5:onTinycastOpen"}"#)
+        check("a link with an empty target is no accessory", accessory(empty) == nil)
+        let inert = formJSON(#""target":"https://linear.app","text":"Linear""#)
+        check("a link the runtime cannot open is no accessory", accessory(inert) == nil)
+
+        guard case .dropdown(let dropdown) = accessory(listJSON) else {
+            check("a List.Dropdown parses as a dropdown", false)
+            return
+        }
+        check("a List.Dropdown parses as a dropdown", dropdown.nodeID == 9)
+        check(
+            "a List root is no accessory", ExtensionSearchBarAccessory(node: node(listJSON)) == nil)
+        check("no node is no accessory", ExtensionSearchBarAccessory(node: nil) == nil)
     }
 
     static func parsing() {

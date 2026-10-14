@@ -741,13 +741,12 @@ struct RootPaletteView: View {
                     )
                 }
             }
-            if !isCollapsed, let command = extensionCommandScreen,
-                let accessory = command.searchAccessory
+            if !isCollapsed,
+                let control = extensionCommandScreen?.headerControl(
+                    isOpen: openMenu == .extensionAccessory, toggle: toggleExtensionSearchAccessory)
             {
                 headerGutter(width: metrics.spacing.md)
-                command.searchAccessoryButton(
-                    accessory, isOpen: openMenu == .extensionAccessory,
-                    action: toggleExtensionSearchAccessory)
+                control
             }
             headerGutter(width: metrics.spacing.md * 2)
         }

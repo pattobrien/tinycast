@@ -24,6 +24,7 @@ struct ExtensionTests {
         var calls: [String] = []
         var toasts: [String] = []
         var huds: [String] = []
+        var opened: [String] = []
         private let fetcher = ExtensionFetcher()
         private let sockets = ExtensionWebSocketBridge()
 
@@ -52,6 +53,9 @@ struct ExtensionTests {
                 return "1"
             case "feedback.showHUD":
                 huds.append(arguments.first?.stringValue ?? "")
+                return ""
+            case "system.open":
+                opened.append(arguments.first?.stringValue ?? "")
                 return ""
             case "storage.get", "clipboard.readText":
                 return #""""#
@@ -196,6 +200,7 @@ struct ExtensionTests {
         await searchAccessoryRuntimeChecks()
         await formDropdownSearchRuntimeChecks()
         await searchFilteringDefaultRuntimeChecks()
+        await linkAccessoryRuntimeChecks()
         await nodeContractChecks()
         await bufferEventChecks()
         await webAssemblyChecks()
@@ -1723,6 +1728,56 @@ struct ExtensionTests {
         check(
             "the filtering roots report no runtime failures", recorder.failures.isEmpty,
             recorder.failures.joined(separator: "\n"))
+    }
+
+    @MainActor
+    static func linkAccessoryRuntimeChecks() async {
+        let (runtime, host, recorder) = makeRuntime()
+        defer { runtime.shutdown() }
+        do {
+            try await runtime.boot(
+                config: .current(supportDirectory: FileManager.default.temporaryDirectory))
+        } catch {
+            check("link accessory runtime boots", false, error.localizedDescription)
+            return
+        }
+        let command = """
+            const { Form } = require("@raycast/api");
+            const h = require("react").createElement;
+            module.exports.default = function Command() {
+              return h(Form, {
+                searchBarAccessory: h(Form.LinkAccessory, {
+                  target: "https://linear.app/settings/api", text: "Get API key" }),
+              }, h(Form.TextField, { id: "key", title: "API key" }));
+            };
+            """
+        await runtime.start(
+            session: "link", code: command,
+            file: URL(fileURLWithPath: "/tmp/form-link-accessory.js"), mode: .view,
+            context: launchContext())
+        await settle(until: { recorder.trees.last?.activeRoot?.node("searchBarAccessory") != nil })
+        let node = recorder.trees.last?.activeRoot?.node("searchBarAccessory")
+        guard case .link(let link) = ExtensionSearchBarAccessory(node: node) else {
+            check("a rendered Form.LinkAccessory reaches Swift as a link", false)
+            await runtime.stop(session: "link")
+            return
+        }
+        check("a rendered Form.LinkAccessory reaches Swift as a link", true)
+        check("its text is the extension's", link.text == "Get API key")
+        check("its target is the extension's", link.target == "https://linear.app/settings/api")
+
+        await runtime.dispatch(session: "link", handler: link.onOpen, payload: "[]")
+        await settle(until: { !host.opened.isEmpty })
+        check(
+            "opening the link opens its target", host.opened == ["https://linear.app/settings/api"],
+            host.opened.joined(separator: ","))
+        check(
+            "opening the link leaves the palette up",
+            !host.calls.contains("window.closeMainWindow"), host.calls.joined(separator: ","))
+        check(
+            "the link reports no runtime failures", recorder.failures.isEmpty,
+            recorder.failures.joined(separator: "\n"))
+        await runtime.stop(session: "link")
     }
 
     @MainActor

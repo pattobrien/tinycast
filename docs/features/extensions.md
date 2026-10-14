@@ -264,6 +264,12 @@ screens hold (see [palette.md](palette.md)).
   A `value` prop makes it controlled: the extension holds it, nothing is seeded, nothing reported.
   `storeValue` parks the pick in `ExtensionStorage.accessoryValues` — host UI state, outside the
   `LocalStorage` namespace JavaScript reads, and gone when the extension is uninstalled.
+- **Search-bar link** — a `Form`'s `Form.LinkAccessory` draws as `ExtensionLinkAccessoryButton` in
+  the same trailing slot, its text beside an arrow and its target in the tooltip. Clicking it
+  dispatches a handler that calls the runtime's own `open`, so a `raycast://` target routes like any
+  other link and the palette stays up. `ExtensionSearchBarAccessory` is the one parse of the slot;
+  `ExtensionCommandScreen.headerControl` hands the palette either control as an opaque box, and only
+  the dropdown is a `searchAccessory`, so ⌘P never claims a link.
 - **Grid tiles** — `ExtensionGridLayout` reads the `Grid`'s `columns`, `aspectRatio`, `fit` and `inset`
   and is the one place tile geometry is decided. A tile is a column wide and `aspectRatio` tall, and its
   content is scaled to that tile rather than drawn at an icon size, which is what makes an image-heavy

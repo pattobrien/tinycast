@@ -15,6 +15,7 @@ import {
 } from "react";
 import { SLOT_TYPE } from "../reconciler.js";
 import { Icon, ActionStyle } from "./enums.generated.js";
+import { open } from "./system.js";
 
 /// `single: true` marks a slot whose parent expects one node rather than a list.
 function slot(name, element, single = true) {
@@ -306,7 +307,13 @@ Form.TagPicker.Item = Section("Form.TagPicker.Item");
 Form.FilePicker = makeField("Form.FilePicker", []);
 Form.Separator = Section("Form.Separator");
 Form.Description = Section("Form.Description");
-Form.LinkAccessory = Section("Form.LinkAccessory");
+Form.LinkAccessory = function LinkAccessory(props) {
+  return h("Form.LinkAccessory", {
+    target: props.target,
+    text: props.text,
+    onTinycastOpen: () => open(props.target),
+  });
+};
 // A form dropdown is a value-carrying field, unlike the search-bar dropdowns above.
 const DropdownField = makeField("Form.Dropdown", "");
 Form.Dropdown = function Dropdown(props) {

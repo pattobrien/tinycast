@@ -1,5 +1,39 @@
 import Foundation
 
+/// What a command seats beside the search field: a choice to filter by, or a link out.
+enum ExtensionSearchBarAccessory: Equatable {
+    case dropdown(ExtensionSearchAccessory)
+    case link(ExtensionLinkAccessory)
+
+    init?(node: RenderNode?) {
+        if let dropdown = ExtensionSearchAccessory(node: node) {
+            self = .dropdown(dropdown)
+        } else if let link = ExtensionLinkAccessory(node: node) {
+            self = .link(link)
+        } else {
+            return nil
+        }
+    }
+}
+
+/// `Form.LinkAccessory`; the runtime opens the target, so `raycast://` links route as any other.
+struct ExtensionLinkAccessory: Equatable {
+    let text: String
+    let target: String
+    let onOpen: String
+
+    init?(node: RenderNode?) {
+        guard let node, node.type == "Form.LinkAccessory",
+            let target = node.string("target"), !target.isEmpty,
+            let onOpen = node.handler("onTinycastOpen")
+        else { return nil }
+        let text = node.string("text") ?? ""
+        self.text = text.isEmpty ? target : text
+        self.target = target
+        self.onOpen = onOpen
+    }
+}
+
 /// The runtime keeps this dropdown hook-free, so Swift holds the selection and reports changes.
 struct ExtensionSearchAccessory: Equatable {
     /// The render node's id, which is what the session keys the held selection by.
