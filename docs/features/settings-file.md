@@ -220,8 +220,7 @@ Every token, by group. `interface-overrides-test` checks this list against `Inte
   `sectionHeaderBottom`, `sectionSpacing`, `emojiSectionSpacing`, `rowVertical`,
   `chatTranscriptBottom`, `chatFollowTailSlack`, `chatLine`
 - `radius`: `panel`, `row`, `formField`, `emojiCell`, `menu`, `menuRow`, `barControl`, `menuPanel`,
-  `dialogSymbol`, `dialog`, `thumbnail`, `glyph`, `attachmentChip`, `card`, `codeBlock`, `keyCap`,
-  `tooltip`
+  `dialogSymbol`, `dialog`, `thumbnail`, `attachmentChip`, `card`, `codeBlock`, `keyCap`, `tooltip`
 - `size`: `panelWidth`, `panelHeight`, `headerHeight`, `headerIconSlot`, `searchFieldMinWidth`,
   `headerPadding`, `compactHeight`, `bottomBarHeight`, `barButtonHeight`, `rowIcon`,
   `resultRowIcon`, `colorDot`, `calendarBarWidth`, `calendarBarHeight`, `keyCap`, `compactKeyCap`,
@@ -230,7 +229,7 @@ Every token, by group. `interface-overrides-test` checks this list against `Inte
   `fileSearchFilterMenuWidth`, `emojiCategoryMenuWidth`, `menuIcon`, `menuBrandIcon`,
   `barBrandIcon`, `menuRowSpacing`, `menuSectionHeader`, `menuRowHeight`, `menuRowsMaxHeight`,
   `clipboardListWidth`, `clipboardMediaHeight`, `clipboardPreviewPixel`, `emojiGridInset`,
-  `emojiCell`, `markdownListMarker`, `markdownQuoteBar`, `chatMessageAction`, `chatSourceBadge`,
+  `markdownListMarker`, `markdownQuoteBar`, `chatMessageAction`, `chatSourceBadge`,
   `chatJumpToLatest`, `chatImageThumb`, `chatAttachmentGlyph`, `chatAttachmentThumb`,
   `chatAttachmentRemove`, `chatAttachmentInset`, `quickActionPanel`, `quickActionHeaderIcon`,
   `quickActionScrollFade`, `quickActionPanelBody`, `quickActionPanelMinBody`, `dialogCompactWidth`,

@@ -14,7 +14,7 @@ enum InterfaceToken: Hashable, Sendable, CaseIterable {
 
     enum Radius: String, CaseIterable, Sendable {
         case panel, row, formField, emojiCell, menu, menuRow, barControl, menuPanel, dialogSymbol
-        case dialog, thumbnail, glyph, attachmentChip, card, codeBlock, keyCap, tooltip
+        case dialog, thumbnail, attachmentChip, card, codeBlock, keyCap, tooltip
     }
 
     enum Size: String, CaseIterable, Sendable {
@@ -26,7 +26,7 @@ enum InterfaceToken: Hashable, Sendable, CaseIterable {
         case actionMenuWidth, clipboardFilterMenuWidth, fileSearchFilterMenuWidth
         case emojiCategoryMenuWidth, menuIcon, menuBrandIcon, barBrandIcon, menuRowSpacing
         case menuSectionHeader, menuRowHeight, menuRowsMaxHeight, clipboardListWidth
-        case clipboardMediaHeight, clipboardPreviewPixel, emojiGridInset, emojiCell
+        case clipboardMediaHeight, clipboardPreviewPixel, emojiGridInset
         case markdownListMarker, markdownQuoteBar, chatMessageAction, chatSourceBadge
         case chatJumpToLatest, chatImageThumb, chatAttachmentGlyph, chatAttachmentThumb
         case chatAttachmentRemove, chatAttachmentInset

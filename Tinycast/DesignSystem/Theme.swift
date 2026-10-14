@@ -159,7 +159,6 @@ enum Theme {
         static let clipboardListWidth: CGFloat = 290
         /// Symmetric clearance between the emoji grid and both panel edges.
         static let emojiGridInset: CGFloat = 16
-        static let emojiCell: CGFloat = 56
         static let menuWidth: CGFloat = 276
         static let formMenuMinimumWidth: CGFloat = 200
         static let formMenuExtraRowsHeight: CGFloat = 20
