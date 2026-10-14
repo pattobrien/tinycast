@@ -123,7 +123,6 @@ struct InterfaceMetrics: Equatable, Sendable {
         var dialogSymbol: CGFloat { points(.dialogSymbol, Theme.Radius.dialogSymbol) }
         var dialog: CGFloat { points(.dialog, Theme.Radius.dialog) }
         var thumbnail: CGFloat { points(.thumbnail, Theme.Radius.thumbnail) }
-        var glyph: CGFloat { points(.glyph, Theme.Radius.glyph) }
         var attachmentChip: CGFloat { points(.attachmentChip, Theme.Radius.attachmentChip) }
         var card: CGFloat { points(.card, Theme.Radius.card) }
         var codeBlock: CGFloat { points(.codeBlock, Theme.Radius.codeBlock) }
@@ -199,7 +198,6 @@ struct InterfaceMetrics: Equatable, Sendable {
             points(.clipboardPreviewPixel, Theme.Size.clipboardPreviewPixel)
         }
         var emojiGridInset: CGFloat { points(.emojiGridInset, Theme.Size.emojiGridInset) }
-        var emojiCell: CGFloat { points(.emojiCell, Theme.Size.emojiCell) }
 
         var markdownListMarker: CGFloat { points(.markdownListMarker, Theme.Size.markdownListMarker) }
         var markdownQuoteBar: CGFloat { points(.markdownQuoteBar, Theme.Size.markdownQuoteBar) }

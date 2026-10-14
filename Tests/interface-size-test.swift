@@ -78,7 +78,6 @@ struct InterfaceSizeTests {
         expect(m.radius.dialogSymbol, Theme.Radius.dialogSymbol, "radius.dialogSymbol")
         expect(m.radius.dialog, Theme.Radius.dialog, "radius.dialog")
         expect(m.radius.thumbnail, Theme.Radius.thumbnail, "radius.thumbnail")
-        expect(m.radius.glyph, Theme.Radius.glyph, "radius.glyph")
         expect(m.radius.attachmentChip, Theme.Radius.attachmentChip, "radius.attachmentChip")
         expect(m.radius.card, Theme.Radius.card, "radius.card")
         expect(m.radius.keyCap, Theme.Radius.keyCap, "radius.keyCap")
@@ -132,7 +131,6 @@ struct InterfaceSizeTests {
         expect(
             m.size.clipboardPreviewPixel, Theme.Size.clipboardPreviewPixel,
             "size.clipboardPreviewPixel")
-        expect(m.size.emojiCell, Theme.Size.emojiCell, "size.emojiCell")
         expect(m.size.emojiGridInset, Theme.Size.emojiGridInset, "size.emojiGridInset")
         expect(m.size.markdownListMarker, Theme.Size.markdownListMarker, "size.markdownListMarker")
         expect(m.size.markdownQuoteBar, Theme.Size.markdownQuoteBar, "size.markdownQuoteBar")
@@ -333,7 +331,7 @@ struct InterfaceSizeTests {
             ("radius.barControl", m.radius.barControl), ("radius.menuPanel", m.radius.menuPanel),
             ("radius.dialogSymbol", m.radius.dialogSymbol),
             ("radius.dialog", m.radius.dialog), ("radius.thumbnail", m.radius.thumbnail),
-            ("radius.glyph", m.radius.glyph), ("radius.attachmentChip", m.radius.attachmentChip),
+            ("radius.attachmentChip", m.radius.attachmentChip),
             ("radius.card", m.radius.card), ("radius.keyCap", m.radius.keyCap),
             ("radius.tooltip", m.radius.tooltip),
             ("size.panelWidth", m.size.panelWidth), ("size.panelHeight", m.size.panelHeight),
@@ -365,7 +363,6 @@ struct InterfaceSizeTests {
             ("size.clipboardListWidth", m.size.clipboardListWidth),
             ("size.clipboardMediaHeight", m.size.clipboardMediaHeight),
             ("size.emojiGridInset", m.size.emojiGridInset),
-            ("size.emojiCell", m.size.emojiCell),
             ("size.markdownListMarker", m.size.markdownListMarker),
             ("size.markdownQuoteBar", m.size.markdownQuoteBar),
             ("size.chatMessageAction", m.size.chatMessageAction),

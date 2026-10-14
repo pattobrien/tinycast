@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// Against the real `Theme` and `InterfaceMetrics`, so a token can never name a value nothing reads.
 @main
 @MainActor
 struct InterfaceOverridesTests {
@@ -28,6 +27,7 @@ struct InterfaceOverridesTests {
         noOverrideKeepsThemeVerbatim()
         everyTokenIsHonoured()
         try everyPropertyHasAToken()
+        try everyTokenHasAReader()
         keysRoundTrip()
         try theFileApplies()
         try badValuesKeepTheirOverride()
@@ -150,7 +150,6 @@ struct InterfaceOverridesTests {
             case .dialogSymbol: m.radius.dialogSymbol
             case .dialog: m.radius.dialog
             case .thumbnail: m.radius.thumbnail
-            case .glyph: m.radius.glyph
             case .attachmentChip: m.radius.attachmentChip
             case .card: m.radius.card
             case .codeBlock: m.radius.codeBlock
@@ -197,7 +196,6 @@ struct InterfaceOverridesTests {
             case .clipboardMediaHeight: m.size.clipboardMediaHeight
             case .clipboardPreviewPixel: m.size.clipboardPreviewPixel
             case .emojiGridInset: m.size.emojiGridInset
-            case .emojiCell: m.size.emojiCell
             case .markdownListMarker: m.size.markdownListMarker
             case .markdownQuoteBar: m.size.markdownQuoteBar
             case .chatMessageAction: m.size.chatMessageAction
@@ -267,11 +265,16 @@ struct InterfaceOverridesTests {
         }
     }
 
+    static let twins = [
+        "typography.searchField": "typography.searchFieldSize",
+        "typography.searchFieldNSFont": "typography.searchFieldSize",
+        "typography.chipNSFont": "typography.chip"
+    ]
+
     /// Text, because a property added without a token compiles and silently can't be overridden.
     static func everyPropertyHasAToken() throws {
         let source = try String(
             contentsOfFile: "Tinycast/DesignSystem/InterfaceMetrics.swift", encoding: .utf8)
-        let twins: Set = ["typography.searchField", "typography.searchFieldNSFont", "typography.chipNSFont"]
         var declared: [String] = []
         var group: String?
         var depth = 0
@@ -290,13 +293,37 @@ struct InterfaceOverridesTests {
             if depth == 0 { group = nil }
         }
         let keys = Set(InterfaceToken.allCases.map(\.key))
-        let untokened = declared.filter { !keys.contains($0) && !twins.contains($0) }
+        let untokened = declared.filter { !keys.contains($0) && twins[$0] == nil }
         let unread = keys.subtracting(declared)
         expect(
             declared.count == keys.count + twins.count,
             "the scan found every property — got \(declared.count)")
         expect(untokened.isEmpty, "every property has a token — missing: \(untokened)")
         expect(unread.isEmpty, "every token has a property — missing: \(unread.sorted())")
+    }
+
+    /// Text, because a token nothing reads still parses, validates and persists without effect.
+    static func everyTokenHasAReader() throws {
+        let definitions: Set = [
+            "Tinycast/DesignSystem/InterfaceMetrics.swift", "Tinycast/DesignSystem/InterfaceToken.swift"
+        ]
+        guard let paths = FileManager.default.enumerator(atPath: "Tinycast")?.allObjects as? [String]
+        else { return expect(false, "the Tinycast sources are enumerable") }
+        let tokenPath = /\b(spacing|radius|size|typography)\.(\w+)\b/.wordBoundaryKind(.simple)
+        var read: Set<String> = []
+        for path in paths.map({ "Tinycast/\($0)" }) where path.hasSuffix(".swift") {
+            guard !definitions.contains(path) else { continue }
+            let source = try String(contentsOfFile: path, encoding: .utf8)
+            for match in source.matches(of: tokenPath) {
+                let key = "\(match.1).\(match.2)"
+                read.insert(twins[key] ?? key)
+            }
+            for match in source.matches(of: /textNSFont\([^)]*?token: \.(\w+)/) {
+                read.insert("typography.\(match.1)")
+            }
+        }
+        let unread = InterfaceToken.allCases.map(\.key).filter { !read.contains($0) }
+        expect(unread.isEmpty, "every token is read outside its definition — unread: \(unread)")
     }
 
     static func keysRoundTrip() {
