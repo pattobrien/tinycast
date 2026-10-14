@@ -52,11 +52,11 @@ enum RoomArrangement {
         return Reading(kind: .saved, order: Array(0..<count), distance: best.distance)
     }
 
-    /// `room` rebuilt from open windows, then `kept`: the members no open window filled.
+    /// `room` rebuilt from open windows, each keeping its handle's resolver, then `kept`.
     static func learn(
-        _ room: Room, from windows: [RoomLiveWindow], keeping kept: [RoomWindow] = [],
-        on screen: WindowLayoutScreen, spansDisplays: Bool, gap: CGFloat, minimums: [CGSize],
-        keepsOrder: Bool
+        _ room: Room, from windows: [RoomLiveWindow], resolvers: [Int: String] = [:],
+        keeping kept: [RoomWindow] = [], on screen: WindowLayoutScreen, spansDisplays: Bool,
+        gap: CGFloat, minimums: [CGSize], keepsOrder: Bool
     ) -> (room: Room, reading: Reading) {
         let visible = screen.screen.visibleFrame
         var reading = read(windows.map(\.frame), in: visible, gap: gap, minimums: minimums)
@@ -70,7 +70,8 @@ enum RoomArrangement {
             RoomWindow(
                 bundleID: window.bundleID, appName: window.appName, title: window.title,
                 windowID: window.windowID,
-                unitFrame: RoomWindow.unitFrame(of: window.frame, in: visible))
+                unitFrame: RoomWindow.unitFrame(of: window.frame, in: visible),
+                resolve: resolvers[window.handle])
         }
         if reading.kind == .custom, let cells = reading.cells, cells.count == learned.count {
             for index in learned.indices { learned[index].cell = cells[index] }

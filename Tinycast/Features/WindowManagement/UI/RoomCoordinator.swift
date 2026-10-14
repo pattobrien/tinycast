@@ -295,7 +295,10 @@ final class RoomCoordinator {
         // Two closed windows of one app collapse into the one app they now stand for.
         var seen = Set<RoomSession.Pick>()
         session.beginPicking(
-            named: room.name, editing: room.id, picked: picks.filter { seen.insert($0).inserted })
+            named: room.name, editing: room.id, picked: picks.filter { seen.insert($0).inserted },
+            resolvers: Dictionary(
+                zip(picks, room.windows).compactMap { pick, window in window.resolve.map { (pick, $0) } }
+            ) { first, _ in first })
         previewPicked()
     }
 
@@ -392,9 +395,16 @@ final class RoomCoordinator {
             guard case .window(let handle) = pick else { return nil }
             return snapshot.window(handle)
         }
+        let resolvers = Dictionary(
+            uniqueKeysWithValues: session.resolvers.compactMap { pick, command -> (Int, String)? in
+                guard case .window(let handle) = pick else { return nil }
+                return (handle, command)
+            })
         var room = base
         if !windows.isEmpty {
-            guard let (learned, _) = learn(base, from: windows, in: snapshot, keepsOrder: true)
+            guard
+                let (learned, _) = learn(
+                    base, from: windows, resolvers: resolvers, in: snapshot, keepsOrder: true)
             else { return }
             room = learned
         }
@@ -404,7 +414,9 @@ final class RoomCoordinator {
             switch pick {
             case .window: return learnedWindows.next()
             case .app(let app):
-                return RoomWindow(bundleID: app.bundleID, appName: app.name, title: "")
+                return RoomWindow(
+                    bundleID: app.bundleID, appName: app.name, title: "",
+                    resolve: session.resolvers[pick])
             }
         }
         room.name = name
@@ -433,9 +445,16 @@ final class RoomCoordinator {
             core.showMessage("None of \(room.name)’s windows are open", tone: .neutral)
             return
         }
+        let resolvers = Dictionary(
+            uniqueKeysWithValues: arranged.compactMap { index -> (Int, String)? in
+                guard let live = assignment[index], let command = room.windows[index].resolve
+                else { return nil }
+                return (snapshot.windows[live].handle, command)
+            })
         guard
             let (updated, reading) = learn(
-                room, from: windows, keeping: kept, in: snapshot, keepsOrder: false)
+                room, from: windows, resolvers: resolvers, keeping: kept, in: snapshot,
+                keepsOrder: false)
         else { return }
         do {
             try store.update(updated)
@@ -448,8 +467,8 @@ final class RoomCoordinator {
 
     /// Read on the display most of the windows share, which is where their arrangement is.
     private func learn(
-        _ room: Room, from windows: [RoomLiveWindow], keeping kept: [RoomWindow] = [],
-        in snapshot: RoomWindowSweep.Snapshot, keepsOrder: Bool
+        _ room: Room, from windows: [RoomLiveWindow], resolvers: [Int: String],
+        keeping kept: [RoomWindow] = [], in snapshot: RoomWindowSweep.Snapshot, keepsOrder: Bool
     ) -> (Room, RoomArrangement.Reading)? {
         let screens = snapshot.screens.map(\.screen)
         let hosts = windows.map { WindowPlacementEngine.screen(containing: $0.frame, in: screens)?.id }
@@ -460,7 +479,8 @@ final class RoomCoordinator {
                 ?? snapshot.screen(uuid: targetDisplayUUID)
         else { return nil }
         let result = RoomArrangement.learn(
-            room, from: windows, keeping: kept, on: screen, spansDisplays: counts.count > 1, gap: gap,
+            room, from: windows, resolvers: resolvers, keeping: kept, on: screen,
+            spansDisplays: counts.count > 1, gap: gap,
             minimums: windows.map { minimums.size(for: $0.bundleID) }, keepsOrder: keepsOrder)
         return (result.room, result.reading)
     }

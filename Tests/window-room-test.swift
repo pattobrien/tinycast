@@ -520,6 +520,13 @@ struct WindowRoomTests {
             picked.room.windows.map(\.bundleID) == ["app.a", "app.b"],
             "the picker's order wins and replaces the set")
 
+        let rearranged = RoomArrangement.learn(
+            room, from: windows, resolvers: [1: "echo 2"], on: display, spansDisplays: false, gap: gap,
+            minimums: [.zero, .zero], keepsOrder: false)
+        expect(
+            rearranged.room.windows.map(\.resolve) == ["echo 2", nil],
+            "a rebuilt window keeps the resolver of the member it fills")
+
         let cascade = (0..<2).map {
             live($0, "app.\($0)", frame: CGRect(x: 100 + 40 * $0, y: 100, width: 900, height: 700))
         }
@@ -769,6 +776,14 @@ struct WindowRoomTests {
         full.windows[0].cell = RoomGrid.Cell(column: 0, columns: 12, row: 0, rows: 12)
         let data = try? JSONEncoder().encode(full)
         expect(data.flatMap { try? JSONDecoder().decode(Room.self, from: $0) } == full, "a room round-trips")
+        expect(room.windows[0].resolve == nil, "a window stored before resolvers has none")
+        var resolving = full
+        resolving.windows[0].resolve = "herdr window-id build"
+        let resolvingData = try? JSONEncoder().encode(resolving)
+        expect(
+            resolvingData.flatMap { try? JSONDecoder().decode(Room.self, from: $0) }?.windows[0].resolve
+                == "herdr window-id build",
+            "a window's resolver round-trips")
         expect(
             full.layout(onDisplay: "ABC") == .stack && full.layout(onDisplay: nil) == .grid,
             "display layouts match on any case")

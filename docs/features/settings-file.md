@@ -174,6 +174,9 @@ in `commands.builtIn` — by their ID after `command:`. App Launcher and Dictati
   app's `width` and `height` are fractions of its display, in full precision.
 - A room's window numbers and when it was last entered stay out of the file, and survive an edit to
   the room: `Room.keepingRuntime(of:)` returns a number only to a window of the same app.
+- A room window's **`resolve`** is a shell command that names its window on entry, `null` when it has
+  none. A room's `windows` replace its windows whole, so a window that leaves a field out gets that
+  field's default — no resolver, for `resolve` — and blank text reads as `null`.
 
 ## Appearance overrides
 
