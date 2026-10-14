@@ -243,13 +243,10 @@ final class AppSettings {
 
     var interfaceMetrics: InterfaceMetrics { interfaceSize.metrics.overriding(interfaceOverrides) }
 
-    /// A dragged palette keeps its centre where it was as the panel's width changes.
     private func recentrePalettePositions(from old: InterfaceMetrics) {
-        let shift = Double((old.size.panelWidth - interfaceMetrics.size.panelWidth) / 2)
-        guard shift != 0 else { return }
-        palettePositions = palettePositions.mapValues { offset in
-            offset.count == 2 ? [offset[0] + shift, offset[1]] : offset
-        }
+        let recentred = PalettePlacement.recentred(
+            palettePositions, panelWidth: old.size.panelWidth, to: interfaceMetrics.size.panelWidth)
+        if recentred != palettePositions { palettePositions = recentred }
     }
 
     /// Summon the launcher as a slim search bar that expands into the full list on typing.
