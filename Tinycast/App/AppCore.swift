@@ -468,6 +468,7 @@ final class AppCore {
     }
 
     func handleOpenURL(_ url: URL) {
+        if let link = RoomDeepLink(url: url) { return roomCoordinator.enterRoom(linkedBy: link) }
         guard ExtensionDeepLink.claims(url) else { return }
         guard let route = ExtensionDeepLink.route(url: url) else {
             paletteCoordinator.showPalette(mode: .launcher, restoreAnyMode: true)
