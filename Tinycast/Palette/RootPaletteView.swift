@@ -289,8 +289,7 @@ struct RootPaletteView: View {
                 inputOptions, width: width, extraRowsHeight: metrics.size.formMenuExtraRowsHeight)
         case .extensionAccessory:
             return extensionCommandScreen?.searchAccessoryMenu(
-                searchQuery: ActionMenuSearchQuery(vm.menuQuery),
-                menuSelection: $menuSelection, onActivate: activateMenuItem)
+                query: vm.menuQuery, menuSelection: $menuSelection, onActivate: activateMenuItem)
         case nil: return nil
         }
     }
@@ -353,6 +352,15 @@ struct RootPaletteView: View {
             selection: sel)
     }
 
+    @ViewBuilder
+    private func extensionAccessoryObservers(_ content: some View) -> some View {
+        content
+            .onChange(of: extensionAccessoryQuery) { _, query in
+                extensionCommandScreen?.searchAccessoryQueryChanged(to: query)
+            }
+            .onChange(of: extensionCommandScreen?.searchAccessory) { refreshExtensionAccessoryMenu() }
+    }
+
     /// The emoji grid's observers, split out so `stateObservers` stays within type-checker reach.
     @ViewBuilder
     private func emojiObservers(_ content: some View) -> some View {
@@ -382,7 +390,7 @@ struct RootPaletteView: View {
     /// Split from `body` for the same reason `keyHandlers` is: one chain cannot carry them all.
     @ViewBuilder
     private func stateObservers(_ content: some View) -> some View {
-        emojiObservers(content)
+        extensionAccessoryObservers(emojiObservers(content))
             // Every show bumps focusToken so the search field refocuses.
             .onChange(of: vm.focusToken) {
                 searchFocused = !screen.hidesSearchField
@@ -766,6 +774,11 @@ struct RootPaletteView: View {
     private var extensionCommandScreen: ExtensionCommandScreen? {
         guard vm.mode == .extensionCommand else { return nil }
         return screen as? ExtensionCommandScreen
+    }
+
+    /// Empty whenever the dropdown is shut, so closing it after a search reports the cleared text.
+    private var extensionAccessoryQuery: String {
+        openMenu == .extensionAccessory ? vm.menuQuery : ""
     }
 
     /// Whichever screen offers one; the compact bar has no room for it.
@@ -1229,6 +1242,17 @@ struct RootPaletteView: View {
             closeMenus()
             return
         }
+        syncMenuPanel(presenting: false)
+    }
+
+    /// A dropdown that searches for itself replaces its choices under the open menu.
+    private func refreshExtensionAccessoryMenu() {
+        guard openMenu == .extensionAccessory else { return }
+        guard let content = menuContent else {
+            closeMenus()
+            return
+        }
+        menuSelection = min(menuSelection, max(content.rowCount - 1, 0))
         syncMenuPanel(presenting: false)
     }
 

@@ -161,9 +161,10 @@ struct ExtensionCommandScreen: PaletteScreen {
 
     func secondary(at selection: Int) -> Bool { false }
 
-    /// The `searchBarAccessory` dropdown; an empty one states and opens nothing, so it is none.
+    /// The `searchBarAccessory` dropdown; an empty one is none unless a query can bring choices.
     var searchAccessory: ExtensionSearchAccessory? {
-        guard case .dropdown(let accessory) = searchBarAccessory, !accessory.items.isEmpty
+        guard case .dropdown(let accessory) = searchBarAccessory,
+            !accessory.items.isEmpty || accessory.search.textHandler != nil
         else { return nil }
         return accessory
     }
@@ -193,14 +194,14 @@ struct ExtensionCommandScreen: PaletteScreen {
 
     /// Its choices as a palette menu, so the arrows, ↵, Escape and the click-away come free.
     func searchAccessoryMenu(
-        searchQuery: ActionMenuSearchQuery, menuSelection: Binding<Int>,
-        onActivate: @escaping (Int) -> Void
+        query: String, menuSelection: Binding<Int>, onActivate: @escaping (Int) -> Void
     ) -> PaletteMenuContent? {
         guard let accessory = searchAccessory else { return nil }
+        let filter = accessory.search.filter(for: query)
         var items: [ExtensionPickerItem] = []
         var bestMatch: (index: Int, score: Int)?
         for item in accessory.items {
-            guard let score = searchQuery.score(item.title) else { continue }
+            guard let score = filter.score([item.title]) else { continue }
             items.append(item)
             if score > (bestMatch?.score ?? .min) {
                 bestMatch = (items.count - 1, score)
@@ -216,8 +217,10 @@ struct ExtensionCommandScreen: PaletteScreen {
                     ExtensionPickerList(
                         items: items, selection: menuSelection.wrappedValue,
                         chosen: chosen, assetsPath: assetsPath,
+                        isLoading: accessory.search.isLoading,
                         width: ExtensionSearchAccessoryButton.listWidth,
-                        searchPlaceholder: "Search…", onSelect: onActivate,
+                        searchPlaceholder: accessory.placeholder ?? "Search…",
+                        onSelect: onActivate,
                         onHighlight: { menuSelection.wrappedValue = $0 }))
             },
             activate: { index in
@@ -228,6 +231,12 @@ struct ExtensionCommandScreen: PaletteScreen {
                     .path(in: bounds).cgPath
             },
             motion: ExtensionMenuMotion.panel)
+    }
+
+    /// The open dropdown's typed query, for a dropdown that took its search text over.
+    func searchAccessoryQueryChanged(to query: String) {
+        guard let handler = searchAccessory?.search.textHandler else { return }
+        extensions.dispatch(handler: handler, arguments: [query])
     }
 
     func body(selection: Int, scroll: ScrollIntent) -> AnyView {

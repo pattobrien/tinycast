@@ -140,7 +140,7 @@ Two host-call flavours:
 | `Model/ExtensionRefreshPolicy.swift`          | background-refresh decisions: interval parsing, due dates, backoff                                         |
 | `Model/ExtensionLaunchType.swift`             | `userInitiated` / `background`, mirroring `@raycast/api` `LaunchType`                                      |
 | `Model/RenderNode.swift`                      | the decoded render tree (`RenderTree` / `RenderNode` / `RenderValue`)                                      |
-| `Model/ExtensionSearchContract.swift`         | Raycast's `SearchBarInterface` for a `List` or `Grid` root and a `Form.Dropdown`, and its local filter     |
+| `Model/ExtensionSearchContract.swift`         | Raycast's `SearchBarInterface` for a `List` or `Grid` root and any dropdown, and its local filter          |
 | `Model/ExtensionAppearance.swift`             | the per-extension icon override and its tint palette                                                       |
 | `Service/ExtensionAppearanceStore.swift`      | where those overrides persist                                                                              |
 | `Service/SymbolCatalog.swift`                 | the SF Symbol list read from `CoreGlyphs.bundle`                                                           |
@@ -259,11 +259,19 @@ screens hold (see [palette.md](palette.md)).
   path and no second key handler exists to disagree with it. `PaletteFilterAction` routes ⌘P, so a
   command's own dropdown answers before Tinycast's clipboard filter can. The list is
   `listWidth` (240) rather than a form picker's field width: it hangs off a chip, not a field.
-  Its native search field sits above the choices and uses the palette menu's fuzzy matcher.
+  Its native search field sits above the choices, prompting with the dropdown's `placeholder`.
+  `ExtensionSearchAccessory.search` is the same `ExtensionSearchContract` a `List` reads: with no
+  `onSearchTextChange` the panel filters with the launcher's `FuzzyMatch`; with one, the open
+  panel's typed text goes to the extension (cleared to `""` when the panel shuts after a search),
+  its returned children are the choices, and the palette re-lays the open panel as they change.
+  `isLoading` puts a spinner in the panel's search row, and an empty list reads "Loading…". A
+  dropdown that searches stays a `searchAccessory` with no choices, since a query can bring some.
   **Swift owns the selection** — the runtime keeps `makeSearchDropdown` hook-free so an extension may
-  call `List.Dropdown({…})` directly — so `ExtensionManager.accessoryValues` keys it by render-node id
-  and `seedSearchBarAccessory` reports the opening choice through `onChange` on the first commit, as
-  Raycast does; without that, a command filtering its rows by the value renders nothing (issue #511).
+  call `List.Dropdown({…})` directly, even conditionally — so `ExtensionManager.accessoryValues` keys
+  it by render-node id and `seedSearchBarAccessory` reports the opening choice through `onChange` on
+  the first commit, as Raycast does; without that, a command filtering its rows by the value renders
+  nothing (issue #511). `throttle` runs in the `ThrottledSearchDropdown` element the call returns,
+  through the same `useThrottledSearch` a `List` uses, so its hooks never land in the caller.
   A `value` prop makes it controlled: the extension holds it, nothing is seeded, nothing reported.
   `storeValue` parks the pick in `ExtensionStorage.accessoryValues` — host UI state, outside the
   `LocalStorage` namespace JavaScript reads, and gone when the extension is uninstalled.

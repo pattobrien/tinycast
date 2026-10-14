@@ -220,6 +220,7 @@ struct ExtensionTests {
         await confirmAlertRuntimeChecks()
         await formDropdownSearchRuntimeChecks()
         await searchFilteringDefaultRuntimeChecks()
+        await headerDropdownSearchRuntimeChecks()
         await linkAccessoryRuntimeChecks()
         await nodeContractChecks()
         await bufferEventChecks()
@@ -1885,6 +1886,22 @@ struct ExtensionTests {
                 "a Grid with a handler does not",
                 "h(Grid, { onSearchTextChange: () => {} }, cell)", false
             ),
+            (
+                "a List.Dropdown without a handler filters locally",
+                "h(List, { searchBarAccessory: h(List.Dropdown, {}, choice) }, item)", true
+            ),
+            (
+                "a List.Dropdown with a handler does not",
+                "h(List, { searchBarAccessory: h(List.Dropdown, "
+                    + "{ onSearchTextChange() {} }, choice) }, item)",
+                false
+            ),
+            (
+                "a Grid.Dropdown with a handler and filtering: true does",
+                "h(Grid, { searchBarAccessory: h(Grid.Dropdown, "
+                    + "{ filtering: true, onSearchTextChange() {} }, gridChoice) }, cell)",
+                true
+            )
         ]
         for (index, entry) in cases.enumerated() {
             let session = "filtering\(index)"
@@ -1893,6 +1910,8 @@ struct ExtensionTests {
                 const h = require("react").createElement;
                 const item = h(List.Item, { title: "\(session)" });
                 const cell = h(Grid.Item, { title: "\(session)", content: "" });
+                const choice = h(List.Dropdown.Item, { title: "One", value: "one" });
+                const gridChoice = h(Grid.Dropdown.Item, { title: "One", value: "one" });
                 module.exports.default = function Command() { return \(entry.root); };
                 """
             func rendered() -> RenderNode? {
@@ -1906,7 +1925,9 @@ struct ExtensionTests {
                 file: URL(fileURLWithPath: "/tmp/\(session).js"), mode: .view,
                 context: launchContext())
             await settle(until: { rendered() != nil })
-            let search = rendered().map { ExtensionSearchContract(node: $0) }
+            let search = rendered().map {
+                ExtensionSearchContract(node: $0.node("searchBarAccessory") ?? $0)
+            }
             check(
                 entry.label, search?.filtersLocally == entry.filtersLocally,
                 "\(String(describing: search))")
@@ -1965,6 +1986,130 @@ struct ExtensionTests {
             "the link reports no runtime failures", recorder.failures.isEmpty,
             recorder.failures.joined(separator: "\n"))
         await runtime.stop(session: "link")
+    }
+
+    static func rowTitle(_ tree: RenderTree?) -> String? {
+        tree?.activeRoot?.children.first?.string("title")
+    }
+
+    static func headerDropdown(_ tree: RenderTree?) -> ExtensionSearchAccessory? {
+        ExtensionSearchAccessory(node: tree?.activeRoot?.node("searchBarAccessory"))
+    }
+
+    /// `List.Dropdown` and `Grid.Dropdown` search through the real runtime, wrapped or called bare.
+    @MainActor
+    static func headerDropdownSearchRuntimeChecks() async {
+        let (runtime, _, recorder) = makeRuntime()
+        defer { runtime.shutdown() }
+        do {
+            try await runtime.boot(
+                config: .current(supportDirectory: FileManager.default.temporaryDirectory))
+        } catch {
+            check("header dropdown runtime boots", false, error.localizedDescription)
+            return
+        }
+        let throttledCommand = """
+            const { List } = require("@raycast/api");
+            const React = require("react");
+            const h = React.createElement;
+            const fruits = ["Apple", "Banana", "Cherry"];
+            function FruitDropdown({ text, onSearch }) {
+              return h(List.Dropdown, { tooltip: "Fruit", throttle: true, isLoading: text === "b",
+                  onSearchTextChange: onSearch },
+                fruits.filter((f) => f.toLowerCase().includes(text))
+                  .map((f) => h(List.Dropdown.Item, { key: f, value: f, title: f })));
+            }
+            module.exports.default = function Command() {
+              const [text, setText] = React.useState("");
+              const [calls, setCalls] = React.useState(0);
+              const onSearch = (t) => { setText(t); setCalls((c) => c + 1); };
+              return h(List, { searchBarAccessory: h(FruitDropdown, { text, onSearch }) },
+                h(List.Item, { title: "calls=" + calls + " text=" + text }));
+            };
+            """
+        await runtime.start(
+            session: "headerThrottle", code: throttledCommand,
+            file: URL(fileURLWithPath: "/tmp/header-dropdown-throttle.js"), mode: .view,
+            context: launchContext())
+        await settle(until: { headerDropdown(recorder.trees.last) != nil })
+        guard let throttled = headerDropdown(recorder.trees.last),
+            let throttledHandler = throttled.search.textHandler
+        else {
+            check("a wrapped List.Dropdown exposes its search handler", false)
+            await runtime.stop(session: "headerThrottle")
+            return
+        }
+        check("a List.Dropdown with a handler leaves filtering to it", !throttled.search.filtersLocally)
+        check("isLoading starts false", !throttled.search.isLoading)
+
+        let clock = ContinuousClock()
+        for text in ["a", "ab", "b"] {
+            await runtime.dispatch(
+                session: "headerThrottle", handler: throttledHandler,
+                payload: ExtensionRuntime.jsonString(from: [text]))
+        }
+        let burstEnded = clock.now
+        await settle(50)
+        let early = rowTitle(recorder.trees.last)
+        check(
+            "the header throttle holds the call back while typing continues",
+            early == "calls=0 text=" || clock.now - burstEnded >= .milliseconds(300),
+            early ?? "no row")
+        await settle(until: { rowTitle(recorder.trees.last)?.hasPrefix("calls=0") == false })
+        await settle(400)
+        check(
+            "the header throttle delivers one call with the last text",
+            rowTitle(recorder.trees.last) == "calls=1 text=b", rowTitle(recorder.trees.last) ?? "no row")
+        let reloaded = headerDropdown(recorder.trees.last)
+        check(
+            "the extension's own results replace the header choices",
+            reloaded?.items.map(\.title) == ["Banana"], "\(reloaded?.items.map(\.title) ?? [])")
+        check("isLoading reaches the header dropdown", reloaded?.search.isLoading == true)
+        await runtime.stop(session: "headerThrottle")
+
+        let immediateCommand = """
+            const { Grid } = require("@raycast/api");
+            const React = require("react");
+            const h = React.createElement;
+            module.exports.default = function Command() {
+              const [typed, setTyped] = React.useState([]);
+              const choices = ["Apple", "Cherry"]
+                .map((f) => h(Grid.Dropdown.Item, { key: f, value: f, title: f }));
+              return h(Grid, {
+                  searchBarAccessory: typed.length > 3 ? undefined : Grid.Dropdown({
+                    tooltip: "Fruit", children: choices,
+                    onSearchTextChange: (t) => setTyped((all) => [...all, t]) }) },
+                h(Grid.Item, { title: "typed=" + typed.join(","), content: "" }));
+            };
+            """
+        await runtime.start(
+            session: "headerImmediate", code: immediateCommand,
+            file: URL(fileURLWithPath: "/tmp/header-dropdown-immediate.js"), mode: .view,
+            context: launchContext())
+        await settle(until: { headerDropdown(recorder.trees.last)?.items.count == 2 })
+        guard let immediateHandler = headerDropdown(recorder.trees.last)?.search.textHandler else {
+            check("a Grid.Dropdown called as a function exposes its search handler", false)
+            await runtime.stop(session: "headerImmediate")
+            return
+        }
+        for text in ["c", "ch", "che", "cher"] {
+            await runtime.dispatch(
+                session: "headerImmediate", handler: immediateHandler,
+                payload: ExtensionRuntime.jsonString(from: [text]))
+        }
+        await settle(until: { rowTitle(recorder.trees.last) == "typed=c,ch,che,cher" })
+        await settle(400)
+        check(
+            "without throttle every header keystroke is delivered, in order",
+            rowTitle(recorder.trees.last) == "typed=c,ch,che,cher",
+            rowTitle(recorder.trees.last) ?? "no row")
+        check(
+            "a dropdown called as a function can drop out of the tree",
+            headerDropdown(recorder.trees.last) == nil)
+        check(
+            "the header dropdowns report no runtime failures", recorder.failures.isEmpty,
+            recorder.failures.joined(separator: "\n"))
+        await runtime.stop(session: "headerImmediate")
     }
 
     @MainActor

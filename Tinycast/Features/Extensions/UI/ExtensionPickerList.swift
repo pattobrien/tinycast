@@ -24,9 +24,17 @@ struct ExtensionPickerList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let searchPlaceholder {
-                ExtensionMenuSearchField(
-                    placeholder: searchPlaceholder, height: form.popoverRowHeight,
-                    verticalOffset: 0)
+                HStack(spacing: 0) {
+                    ExtensionMenuSearchField(
+                        placeholder: searchPlaceholder, height: form.popoverRowHeight,
+                        verticalOffset: 0)
+                    if isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                            .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
+                            .padding(.trailing, metrics.spacing.xl)
+                    }
+                }
                 Rectangle()
                     .fill(Theme.Colors.separator)
                     // One device pixel, matching the actions panel's hairline.
