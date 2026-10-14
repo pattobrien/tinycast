@@ -41,6 +41,16 @@ enum PalettePlacement {
             ? stored : nil
     }
 
+    /// A dragged palette keeps its centre where it was as the panel's width changes.
+    static func recentred(
+        _ offsets: [String: [Double]], panelWidth old: CGFloat, to new: CGFloat
+    ) -> [String: [Double]] {
+        let shift = Double((old - new) / 2)
+        return offsets.mapValues { offset in
+            offset.count == 2 ? [offset[0] + shift, offset[1]] : offset
+        }
+    }
+
     enum HeightSnap: Equatable {
         case home
         case expandedCenter

@@ -225,7 +225,8 @@ run interface-overrides-test Tinycast/Platform/Appearance.swift \
                            Tinycast/DesignSystem/InterfaceToken.swift \
                            Tinycast/Features/Settings/InterfaceSize.swift \
                            Tinycast/Features/Settings/Model/SettingsFileJSON.swift \
-                           Tinycast/Features/Settings/Model/InterfaceOverridesFileFormat.swift
+                           Tinycast/Features/Settings/Model/InterfaceOverridesFileFormat.swift \
+                           Tinycast/Palette/PalettePlacement.swift
 run palette-placement-test Tinycast/Platform/Appearance.swift \
                            Tinycast/DesignSystem/Theme.swift \
                            Tinycast/DesignSystem/InterfaceMetrics.swift \

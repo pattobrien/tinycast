@@ -35,6 +35,9 @@ struct InterfaceOverridesTests {
         try hugeValuesAreRefused()
         try theFileRoundTrips()
         storedOverridesDropWhatNoTokenAccepts()
+        try storedOverridesRoundTripThroughABackup()
+        palettesRecentreOnAWidthChange()
+        try aFileChangingSizeAndOverridesRecentresOnce()
         try theDocsListEveryKey()
 
         print("\(passes) passed, \(failures) failed")
@@ -444,6 +447,47 @@ struct InterfaceOverridesTests {
         expect(
             InterfaceToken.stored([.size(.panelWidth): 900, .typography(.chip): 14])
                 == ["size.panelWidth": 900, "typography.chip": 14], "storage keys by token path")
+    }
+
+    static func storedOverridesRoundTripThroughABackup() throws {
+        let overrides: [InterfaceToken: CGFloat] = [
+            .size(.panelWidth): 812.5, .spacing(.sm): 4, .typography(.rowTitle): 12
+        ]
+        let data = try JSONEncoder().encode(InterfaceToken.stored(overrides))
+        let restored = try JSONDecoder().decode([String: Double].self, from: data)
+        expect(
+            InterfaceToken.overrides(stored: restored) == overrides,
+            "overrides read back from a backup's JSON as they were written")
+    }
+
+    static func palettesRecentreOnAWidthChange() {
+        let offsets = ["main": [100.0, 50], "side": [-20.0, 300], "bad": [7.0]]
+        expect(
+            PalettePlacement.recentred(offsets, panelWidth: 750, to: 825)
+                == ["main": [62.5, 50], "side": [-57.5, 300], "bad": [7]],
+            "a wider panel moves each left edge left by half the growth")
+        expect(
+            PalettePlacement.recentred(offsets, panelWidth: 750, to: 750) == offsets,
+            "an unchanged width moves nothing")
+    }
+
+    static func aFileChangingSizeAndOverridesRecentresOnce() throws {
+        guard
+            let decoded = InterfaceOverridesFileFormat.overrides(
+                from: try file(#"{"size.panelWidth": 700}"#), current: [:])
+        else { return expect(false, "an object decodes") }
+        let before = InterfaceSize.standard.metrics
+        let sized = InterfaceSize.micro.metrics
+        let after = sized.overriding(decoded.overrides)
+        var offsets = ["main": [100.0, 50]]
+        offsets = PalettePlacement.recentred(
+            offsets, panelWidth: before.size.panelWidth, to: sized.size.panelWidth)
+        expect(offsets == ["main": [175, 50]], "Micro alone narrows the panel to 600")
+        offsets = PalettePlacement.recentred(
+            offsets, panelWidth: sized.size.panelWidth, to: after.size.panelWidth)
+        expect(
+            offsets == ["main": [125, 50]],
+            "the overridden 700 pt panel keeps the 750 pt panel's centre, 475 points in")
     }
 
     /// The doc's list is what a user copies from, so it must name every key in file order.

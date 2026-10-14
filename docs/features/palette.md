@@ -310,7 +310,8 @@ display**, keyed by `NSScreen.displayKey` and held **relative to that display's 
 display stops a drop made on one screen pulling the palette back there when it is summoned on another;
 relative survives rearranging that display or rescaling it, so no key goes stale.
 Changing Interface Size, or the `size.panelWidth` override, shifts each saved left edge by half the
-width difference, preserving the launcher's horizontal centre on every display.
+width difference (`PalettePlacement.recentred`), preserving the launcher's horizontal centre on every
+display.
 
 **The display is chosen first, by the setting below.** `PalettePlacement.restored` drops the corner once
 that display shows less than `Theme.Size.paletteMinimumVisible` of the compact bar, or less than its
