@@ -7,11 +7,31 @@ struct InterfaceMetrics: Equatable, Sendable {
     let scale: CGFloat
     let textScale: CGFloat
     let chrome: Chrome
+    /// Final points, so an override is never scaled again.
+    let overrides: [InterfaceToken: CGFloat]
 
-    var spacing: Spacing { Spacing(scale: scale, chrome: chrome) }
-    var radius: Radius { Radius(scale: scale, chrome: chrome) }
-    var size: Size { Size(scale: scale, chrome: chrome) }
-    var typography: Typography { Typography(textScale: textScale, chrome: chrome) }
+    init(
+        scale: CGFloat, textScale: CGFloat, chrome: Chrome,
+        overrides: [InterfaceToken: CGFloat] = [:]
+    ) {
+        self.scale = scale
+        self.textScale = textScale
+        self.chrome = chrome
+        self.overrides = overrides
+    }
+
+    var spacing: Spacing { Spacing(scale: scale, chrome: chrome, overrides: overrides) }
+    var radius: Radius { Radius(scale: scale, chrome: chrome, overrides: overrides) }
+    var size: Size { Size(scale: scale, chrome: chrome, overrides: overrides) }
+    var typography: Typography {
+        Typography(textScale: textScale, chrome: chrome, overrides: overrides)
+    }
+
+    func overriding(_ overrides: [InterfaceToken: CGFloat]) -> InterfaceMetrics {
+        InterfaceMetrics(
+            scale: scale, textScale: textScale, chrome: chrome,
+            overrides: self.overrides.merging(overrides) { $1 })
+    }
 
     /// For a tuned length a surface owns itself, where `Theme` states no token for it.
     func scaled(_ value: CGFloat) -> CGFloat { scaledPoints(value, scale) }
@@ -61,138 +81,180 @@ struct InterfaceMetrics: Equatable, Sendable {
     struct Spacing: Equatable, Sendable {
         let scale: CGFloat
         let chrome: Chrome
+        let overrides: [InterfaceToken: CGFloat]
 
-        var xxs: CGFloat { scaledPoints(Theme.Spacing.xxs, scale) }
-        var xs: CGFloat { scaledPoints(Theme.Spacing.xs, scale) }
-        var sm: CGFloat { scaledPoints(Theme.Spacing.sm, scale) }
-        var md: CGFloat { scaledPoints(Theme.Spacing.md, scale) }
-        var lg: CGFloat { scaledPoints(Theme.Spacing.lg, scale) }
-        var xl: CGFloat { scaledPoints(Theme.Spacing.xl, scale) }
-        var dialogInset: CGFloat { scaledPoints(Theme.Spacing.dialogInset, scale) }
-        var xxl: CGFloat { scaledPoints(Theme.Spacing.xxl, scale) }
-        var xxxl: CGFloat { scaledPoints(Theme.Spacing.xxxl, scale) }
-        var sectionHeaderBottom: CGFloat { scaledPoints(Theme.Spacing.sectionHeaderBottom, scale) }
-        var sectionSpacing: CGFloat { scaledPoints(Theme.Spacing.sectionSpacing, scale) }
-        var emojiSectionSpacing: CGFloat { scaledPoints(Theme.Spacing.emojiSectionSpacing, scale) }
-        var rowVertical: CGFloat { chrome.rowVertical }
-        var chatTranscriptBottom: CGFloat { scaledPoints(Theme.Spacing.chatTranscriptBottom, scale) }
-        var chatFollowTailSlack: CGFloat { scaledPoints(Theme.Spacing.chatFollowTailSlack, scale) }
-        var chatLine: CGFloat { scaledPoints(Theme.Spacing.chatLine, scale) }
+        var xxs: CGFloat { points(.xxs, Theme.Spacing.xxs) }
+        var xs: CGFloat { points(.xs, Theme.Spacing.xs) }
+        var sm: CGFloat { points(.sm, Theme.Spacing.sm) }
+        var md: CGFloat { points(.md, Theme.Spacing.md) }
+        var lg: CGFloat { points(.lg, Theme.Spacing.lg) }
+        var xl: CGFloat { points(.xl, Theme.Spacing.xl) }
+        var dialogInset: CGFloat { points(.dialogInset, Theme.Spacing.dialogInset) }
+        var xxl: CGFloat { points(.xxl, Theme.Spacing.xxl) }
+        var xxxl: CGFloat { points(.xxxl, Theme.Spacing.xxxl) }
+        var sectionHeaderBottom: CGFloat { points(.sectionHeaderBottom, Theme.Spacing.sectionHeaderBottom) }
+        var sectionSpacing: CGFloat { points(.sectionSpacing, Theme.Spacing.sectionSpacing) }
+        var emojiSectionSpacing: CGFloat { points(.emojiSectionSpacing, Theme.Spacing.emojiSectionSpacing) }
+        var rowVertical: CGFloat { overrides[.spacing(.rowVertical)] ?? chrome.rowVertical }
+        var chatTranscriptBottom: CGFloat {
+            points(.chatTranscriptBottom, Theme.Spacing.chatTranscriptBottom)
+        }
+        var chatFollowTailSlack: CGFloat { points(.chatFollowTailSlack, Theme.Spacing.chatFollowTailSlack) }
+        var chatLine: CGFloat { points(.chatLine, Theme.Spacing.chatLine) }
+
+        private func points(_ token: InterfaceToken.Spacing, _ base: CGFloat) -> CGFloat {
+            overrides[.spacing(token)] ?? scaledPoints(base, scale)
+        }
     }
 
     struct Radius: Equatable, Sendable {
         let scale: CGFloat
         let chrome: Chrome
+        let overrides: [InterfaceToken: CGFloat]
 
-        var panel: CGFloat { chrome.panelRadius }
-        var row: CGFloat { chrome.rowRadius }
-        var formField: CGFloat { scaledPoints(Theme.Radius.formField, scale) }
-        var emojiCell: CGFloat { scaledPoints(Theme.Radius.emojiCell, scale) }
-        var menu: CGFloat { scaledPoints(Theme.Radius.menu, scale) }
-        var menuRow: CGFloat { scaledPoints(Theme.Radius.menuRow, scale) }
-        var barControl: CGFloat { scaledPoints(Theme.Radius.barControl, scale) }
-        var menuPanel: CGFloat { scaledPoints(Theme.Radius.menuPanel, scale) }
-        var dialogSymbol: CGFloat { scaledPoints(Theme.Radius.dialogSymbol, scale) }
-        var dialog: CGFloat { scaledPoints(Theme.Radius.dialog, scale) }
-        var thumbnail: CGFloat { scaledPoints(Theme.Radius.thumbnail, scale) }
-        var glyph: CGFloat { scaledPoints(Theme.Radius.glyph, scale) }
-        var attachmentChip: CGFloat { scaledPoints(Theme.Radius.attachmentChip, scale) }
-        var card: CGFloat { scaledPoints(Theme.Radius.card, scale) }
-        var codeBlock: CGFloat { scaledPoints(Theme.Radius.codeBlock, scale) }
-        var keyCap: CGFloat { scaledPoints(Theme.Radius.keyCap, scale) }
-        var tooltip: CGFloat { scaledPoints(Theme.Radius.tooltip, scale) }
+        var panel: CGFloat { overrides[.radius(.panel)] ?? chrome.panelRadius }
+        var row: CGFloat { overrides[.radius(.row)] ?? chrome.rowRadius }
+        var formField: CGFloat { points(.formField, Theme.Radius.formField) }
+        var emojiCell: CGFloat { points(.emojiCell, Theme.Radius.emojiCell) }
+        var menu: CGFloat { points(.menu, Theme.Radius.menu) }
+        var menuRow: CGFloat { points(.menuRow, Theme.Radius.menuRow) }
+        var barControl: CGFloat { points(.barControl, Theme.Radius.barControl) }
+        var menuPanel: CGFloat { points(.menuPanel, Theme.Radius.menuPanel) }
+        var dialogSymbol: CGFloat { points(.dialogSymbol, Theme.Radius.dialogSymbol) }
+        var dialog: CGFloat { points(.dialog, Theme.Radius.dialog) }
+        var thumbnail: CGFloat { points(.thumbnail, Theme.Radius.thumbnail) }
+        var glyph: CGFloat { points(.glyph, Theme.Radius.glyph) }
+        var attachmentChip: CGFloat { points(.attachmentChip, Theme.Radius.attachmentChip) }
+        var card: CGFloat { points(.card, Theme.Radius.card) }
+        var codeBlock: CGFloat { points(.codeBlock, Theme.Radius.codeBlock) }
+        var keyCap: CGFloat { points(.keyCap, Theme.Radius.keyCap) }
+        var tooltip: CGFloat { points(.tooltip, Theme.Radius.tooltip) }
+
+        private func points(_ token: InterfaceToken.Radius, _ base: CGFloat) -> CGFloat {
+            overrides[.radius(token)] ?? scaledPoints(base, scale)
+        }
     }
 
     struct Size: Equatable, Sendable {
         let scale: CGFloat
         let chrome: Chrome
+        let overrides: [InterfaceToken: CGFloat]
 
-        var panelWidth: CGFloat { scaledPoints(Theme.Size.panelWidth, scale) }
-        var panelHeight: CGFloat { scaledPoints(Theme.Size.panelHeight, scale) }
-        var headerHeight: CGFloat { chrome.headerHeight }
-        var headerIconSlot: CGFloat { chrome.headerIconSlot }
-        var searchFieldMinWidth: CGFloat { scaledPoints(Theme.Size.searchFieldMinWidth, scale) }
-        var headerPadding: CGFloat { chrome.headerPadding }
+        var panelWidth: CGFloat { points(.panelWidth, Theme.Size.panelWidth) }
+        var panelHeight: CGFloat { points(.panelHeight, Theme.Size.panelHeight) }
+        var headerHeight: CGFloat { overrides[.size(.headerHeight)] ?? chrome.headerHeight }
+        var headerIconSlot: CGFloat { overrides[.size(.headerIconSlot)] ?? chrome.headerIconSlot }
+        var searchFieldMinWidth: CGFloat { points(.searchFieldMinWidth, Theme.Size.searchFieldMinWidth) }
+        var headerPadding: CGFloat { overrides[.size(.headerPadding)] ?? chrome.headerPadding }
         /// Derived, not scaled: the compact bar must stay exactly the header in symmetric slack.
-        var compactHeight: CGFloat { headerHeight + headerPadding * 2 }
-        var bottomBarHeight: CGFloat { chrome.bottomBarHeight }
-        var barButtonHeight: CGFloat { scaledPoints(Theme.Size.barButtonHeight, scale) }
-        var rowIcon: CGFloat { chrome.rowIcon }
-        var resultRowIcon: CGFloat { chrome.resultRowIcon }
-        var colorDot: CGFloat { scaledPoints(Theme.Size.colorDot, scale) }
-        var calendarBarWidth: CGFloat { scaledPoints(Theme.Size.calendarBarWidth, scale) }
-        var calendarBarHeight: CGFloat { scaledPoints(Theme.Size.calendarBarHeight, scale) }
-        var keyCap: CGFloat { scaledPoints(Theme.Size.keyCap, scale) }
-        var compactKeyCap: CGFloat { scaledPoints(Theme.Size.compactKeyCap, scale) }
-        var heroKeyCap: CGFloat { scaledPoints(Theme.Size.heroKeyCap, scale) }
-        var menuButton: CGFloat { scaledPoints(Theme.Size.menuButton, scale) }
-        var checkbox: CGFloat { scaledPoints(Theme.Size.checkbox, scale) }
+        var compactHeight: CGFloat {
+            overrides[.size(.compactHeight)] ?? headerHeight + headerPadding * 2
+        }
+        var bottomBarHeight: CGFloat { overrides[.size(.bottomBarHeight)] ?? chrome.bottomBarHeight }
+        var barButtonHeight: CGFloat { points(.barButtonHeight, Theme.Size.barButtonHeight) }
+        var rowIcon: CGFloat { overrides[.size(.rowIcon)] ?? chrome.rowIcon }
+        var resultRowIcon: CGFloat { overrides[.size(.resultRowIcon)] ?? chrome.resultRowIcon }
+        var colorDot: CGFloat { points(.colorDot, Theme.Size.colorDot) }
+        var calendarBarWidth: CGFloat { points(.calendarBarWidth, Theme.Size.calendarBarWidth) }
+        var calendarBarHeight: CGFloat { points(.calendarBarHeight, Theme.Size.calendarBarHeight) }
+        var keyCap: CGFloat { points(.keyCap, Theme.Size.keyCap) }
+        var compactKeyCap: CGFloat { points(.compactKeyCap, Theme.Size.compactKeyCap) }
+        var heroKeyCap: CGFloat { points(.heroKeyCap, Theme.Size.heroKeyCap) }
+        var menuButton: CGFloat { points(.menuButton, Theme.Size.menuButton) }
+        var checkbox: CGFloat { points(.checkbox, Theme.Size.checkbox) }
 
-        var menuWidth: CGFloat { scaledPoints(Theme.Size.menuWidth, scale) }
-        var formMenuMinimumWidth: CGFloat { scaledPoints(Theme.Size.formMenuMinimumWidth, scale) }
-        var formMenuExtraRowsHeight: CGFloat { scaledPoints(Theme.Size.formMenuExtraRowsHeight, scale) }
-        var formFieldFocusStroke: CGFloat { scaledPoints(Theme.Size.formFieldFocusStroke, scale) }
-        var actionMenuWidth: CGFloat { scaledPoints(Theme.Size.actionMenuWidth, scale) }
-        var clipboardFilterMenuWidth: CGFloat { scaledPoints(Theme.Size.clipboardFilterMenuWidth, scale) }
-        var fileSearchFilterMenuWidth: CGFloat { scaledPoints(Theme.Size.fileSearchFilterMenuWidth, scale) }
-        var emojiCategoryMenuWidth: CGFloat { scaledPoints(Theme.Size.emojiCategoryMenuWidth, scale) }
-        var menuIcon: CGFloat { scaledPoints(Theme.Size.menuIcon, scale) }
-        var menuBrandIcon: CGFloat { scaledPoints(Theme.Size.menuBrandIcon, scale) }
-        var barBrandIcon: CGFloat { scaledPoints(Theme.Size.barBrandIcon, scale) }
-        var menuRowSpacing: CGFloat { scaledPoints(Theme.Size.menuRowSpacing, scale) }
-        var menuSectionHeader: CGFloat { scaledPoints(Theme.Size.menuSectionHeader, scale) }
+        var menuWidth: CGFloat { points(.menuWidth, Theme.Size.menuWidth) }
+        var formMenuMinimumWidth: CGFloat { points(.formMenuMinimumWidth, Theme.Size.formMenuMinimumWidth) }
+        var formMenuExtraRowsHeight: CGFloat {
+            points(.formMenuExtraRowsHeight, Theme.Size.formMenuExtraRowsHeight)
+        }
+        var formFieldFocusStroke: CGFloat { points(.formFieldFocusStroke, Theme.Size.formFieldFocusStroke) }
+        var actionMenuWidth: CGFloat { points(.actionMenuWidth, Theme.Size.actionMenuWidth) }
+        var clipboardFilterMenuWidth: CGFloat {
+            points(.clipboardFilterMenuWidth, Theme.Size.clipboardFilterMenuWidth)
+        }
+        var fileSearchFilterMenuWidth: CGFloat {
+            points(.fileSearchFilterMenuWidth, Theme.Size.fileSearchFilterMenuWidth)
+        }
+        var emojiCategoryMenuWidth: CGFloat {
+            points(.emojiCategoryMenuWidth, Theme.Size.emojiCategoryMenuWidth)
+        }
+        var menuIcon: CGFloat { points(.menuIcon, Theme.Size.menuIcon) }
+        var menuBrandIcon: CGFloat { points(.menuBrandIcon, Theme.Size.menuBrandIcon) }
+        var barBrandIcon: CGFloat { points(.barBrandIcon, Theme.Size.barBrandIcon) }
+        var menuRowSpacing: CGFloat { points(.menuRowSpacing, Theme.Size.menuRowSpacing) }
+        var menuSectionHeader: CGFloat { points(.menuSectionHeader, Theme.Size.menuSectionHeader) }
         /// Derived like `Theme`'s, so the row cap still counts whole rows at every size.
-        var menuRowHeight: CGFloat { menuIcon + Spacing(scale: scale, chrome: chrome).md * 2 }
+        var menuRowHeight: CGFloat {
+            overrides[.size(.menuRowHeight)]
+                ?? menuIcon + Spacing(scale: scale, chrome: chrome, overrides: overrides).md * 2
+        }
         var menuRowsMaxHeight: CGFloat {
-            (Theme.Size.menuVisibleRows * (menuRowHeight + menuRowSpacing)).rounded()
+            overrides[.size(.menuRowsMaxHeight)]
+                ?? (Theme.Size.menuVisibleRows * (menuRowHeight + menuRowSpacing)).rounded()
         }
-        var clipboardListWidth: CGFloat { scaledPoints(Theme.Size.clipboardListWidth, scale) }
-        var clipboardMediaHeight: CGFloat { scaledPoints(Theme.Size.clipboardMediaHeight, scale) }
-        var clipboardPreviewPixel: CGFloat { scaledPoints(Theme.Size.clipboardPreviewPixel, scale) }
-        var emojiGridInset: CGFloat { scaledPoints(Theme.Size.emojiGridInset, scale) }
-        var emojiCell: CGFloat { scaledPoints(Theme.Size.emojiCell, scale) }
+        var clipboardListWidth: CGFloat { points(.clipboardListWidth, Theme.Size.clipboardListWidth) }
+        var clipboardMediaHeight: CGFloat { points(.clipboardMediaHeight, Theme.Size.clipboardMediaHeight) }
+        var clipboardPreviewPixel: CGFloat {
+            points(.clipboardPreviewPixel, Theme.Size.clipboardPreviewPixel)
+        }
+        var emojiGridInset: CGFloat { points(.emojiGridInset, Theme.Size.emojiGridInset) }
+        var emojiCell: CGFloat { points(.emojiCell, Theme.Size.emojiCell) }
 
-        var markdownListMarker: CGFloat { scaledPoints(Theme.Size.markdownListMarker, scale) }
-        var markdownQuoteBar: CGFloat { scaledPoints(Theme.Size.markdownQuoteBar, scale) }
-        var chatMessageAction: CGFloat { scaledPoints(Theme.Size.chatMessageAction, scale) }
-        var chatSourceBadge: CGFloat { scaledPoints(Theme.Size.chatSourceBadge, scale) }
-        var chatJumpToLatest: CGFloat { scaledPoints(Theme.Size.chatJumpToLatest, scale) }
-        var chatImageThumb: CGFloat { scaledPoints(Theme.Size.chatImageThumb, scale) }
-        var chatAttachmentGlyph: CGFloat { scaledPoints(Theme.Size.chatAttachmentGlyph, scale) }
-        var chatAttachmentThumb: CGFloat { scaledPoints(Theme.Size.chatAttachmentThumb, scale) }
-        var chatAttachmentRemove: CGFloat { scaledPoints(Theme.Size.chatAttachmentRemove, scale) }
-        var chatAttachmentInset: CGFloat { scaledPoints(Theme.Size.chatAttachmentInset, scale) }
+        var markdownListMarker: CGFloat { points(.markdownListMarker, Theme.Size.markdownListMarker) }
+        var markdownQuoteBar: CGFloat { points(.markdownQuoteBar, Theme.Size.markdownQuoteBar) }
+        var chatMessageAction: CGFloat { points(.chatMessageAction, Theme.Size.chatMessageAction) }
+        var chatSourceBadge: CGFloat { points(.chatSourceBadge, Theme.Size.chatSourceBadge) }
+        var chatJumpToLatest: CGFloat { points(.chatJumpToLatest, Theme.Size.chatJumpToLatest) }
+        var chatImageThumb: CGFloat { points(.chatImageThumb, Theme.Size.chatImageThumb) }
+        var chatAttachmentGlyph: CGFloat { points(.chatAttachmentGlyph, Theme.Size.chatAttachmentGlyph) }
+        var chatAttachmentThumb: CGFloat { points(.chatAttachmentThumb, Theme.Size.chatAttachmentThumb) }
+        var chatAttachmentRemove: CGFloat { points(.chatAttachmentRemove, Theme.Size.chatAttachmentRemove) }
+        var chatAttachmentInset: CGFloat { points(.chatAttachmentInset, Theme.Size.chatAttachmentInset) }
 
-        var quickActionPanel: CGFloat { scaledPoints(Theme.Size.quickActionPanel, scale) }
-        var quickActionHeaderIcon: CGFloat { scaledPoints(Theme.Size.quickActionHeaderIcon, scale) }
-        var quickActionScrollFade: CGFloat { scaledPoints(Theme.Size.quickActionScrollFade, scale) }
-        var quickActionPanelBody: CGFloat { scaledPoints(Theme.Size.quickActionPanelBody, scale) }
-        var quickActionPanelMinBody: CGFloat { scaledPoints(Theme.Size.quickActionPanelMinBody, scale) }
+        var quickActionPanel: CGFloat { points(.quickActionPanel, Theme.Size.quickActionPanel) }
+        var quickActionHeaderIcon: CGFloat {
+            points(.quickActionHeaderIcon, Theme.Size.quickActionHeaderIcon)
+        }
+        var quickActionScrollFade: CGFloat {
+            points(.quickActionScrollFade, Theme.Size.quickActionScrollFade)
+        }
+        var quickActionPanelBody: CGFloat { points(.quickActionPanelBody, Theme.Size.quickActionPanelBody) }
+        var quickActionPanelMinBody: CGFloat {
+            points(.quickActionPanelMinBody, Theme.Size.quickActionPanelMinBody)
+        }
 
-        var dialogCompactWidth: CGFloat { scaledPoints(Theme.Size.dialogCompactWidth, scale) }
-        var dialogWidth: CGFloat { scaledPoints(Theme.Size.dialogWidth, scale) }
+        var dialogCompactWidth: CGFloat { points(.dialogCompactWidth, Theme.Size.dialogCompactWidth) }
+        var dialogWidth: CGFloat { points(.dialogWidth, Theme.Size.dialogWidth) }
         var dialogButtonHeight: CGFloat {
-            menuButton
-                - scaledPoints(Theme.Size.menuButton - Theme.Size.dialogButtonHeight, scale)
+            let reduction = scaledPoints(Theme.Size.menuButton - Theme.Size.dialogButtonHeight, scale)
+            return overrides[.size(.dialogButtonHeight)] ?? menuButton - reduction
         }
-        var dialogSymbol: CGFloat { scaledPoints(Theme.Size.dialogSymbol, scale) }
+        var dialogSymbol: CGFloat { points(.dialogSymbol, Theme.Size.dialogSymbol) }
         var dialogSymbolContainer: CGFloat {
-            scaledPoints(Theme.Size.dialogSymbolContainer, scale)
+            points(.dialogSymbolContainer, Theme.Size.dialogSymbolContainer)
         }
-        var dialogIcon: CGFloat { scaledPoints(Theme.Size.dialogIcon, scale) }
-        var hudMaxWidth: CGFloat { scaledPoints(Theme.Size.hudMaxWidth, scale) }
-        var hudWidth: CGFloat { scaledPoints(Theme.Size.hudWidth, scale) }
-        var hudHeight: CGFloat { scaledPoints(Theme.Size.hudHeight, scale) }
-        var volumeTrackHeight: CGFloat { scaledPoints(Theme.Size.volumeTrackHeight, scale) }
-        var volumeReadout: CGFloat { scaledPoints(Theme.Size.volumeReadout, scale) }
+        var dialogIcon: CGFloat { points(.dialogIcon, Theme.Size.dialogIcon) }
+        var hudMaxWidth: CGFloat { points(.hudMaxWidth, Theme.Size.hudMaxWidth) }
+        var hudWidth: CGFloat { points(.hudWidth, Theme.Size.hudWidth) }
+        var hudHeight: CGFloat { points(.hudHeight, Theme.Size.hudHeight) }
+        var volumeTrackHeight: CGFloat { points(.volumeTrackHeight, Theme.Size.volumeTrackHeight) }
+        var volumeReadout: CGFloat { points(.volumeReadout, Theme.Size.volumeReadout) }
+
+        private func points(_ token: InterfaceToken.Size, _ base: CGFloat) -> CGFloat {
+            overrides[.size(token)] ?? scaledPoints(base, scale)
+        }
     }
 
     /// `NSFont` is the only public source of a text style's size and face.
     struct Typography: Sendable {
         let textScale: CGFloat
         let chrome: Chrome
+        let overrides: [InterfaceToken: CGFloat]
 
-        var searchFieldSize: CGFloat { chrome.searchFieldSize }
+        var searchFieldSize: CGFloat {
+            overrides[.typography(.searchFieldSize)] ?? chrome.searchFieldSize
+        }
         var searchField: Font {
             searchFieldSize == Theme.Typography.searchFieldSize
                 ? Theme.Typography.searchField
@@ -205,35 +267,46 @@ struct InterfaceMetrics: Equatable, Sendable {
                 : NSFont.systemFont(ofSize: searchFieldSize, weight: .regular)
         }
         var headerIcon: Font {
-            chrome.headerIconSize == Theme.Typography.headerIconSize
+            let size = overrides[.typography(.headerIcon)] ?? chrome.headerIconSize
+            return size == Theme.Typography.headerIconSize
                 ? Theme.Typography.headerIcon
-                : .system(size: chrome.headerIconSize, weight: .medium)
+                : .system(size: size, weight: .medium)
         }
 
-        var rowTitle: Font { font(Theme.Typography.rowTitle, .body) }
-        var rowTrailing: Font { font(Theme.Typography.rowTrailing, .callout) }
-        var sectionHeader: Font { font(Theme.Typography.sectionHeader, .subheadline, .medium) }
-        var panelTitle: Font { font(Theme.Typography.panelTitle, .headline) }
-        var calcResult: Font { font(Theme.Typography.calcResult, .title1) }
-        var keyCap: Font { font(Theme.Typography.keyCap, .caption1) }
-        var compactKeyCap: Font { font(Theme.Typography.compactKeyCap, .caption2) }
-        var heroKeyCap: Font { font(Theme.Typography.heroKeyCap, .body) }
-        var markdownHeading1: Font { font(Theme.Typography.markdownHeading1, .title2, .semibold) }
-        var markdownHeading2: Font { font(Theme.Typography.markdownHeading2, .title3, .semibold) }
-        var markdownHeading3: Font { font(Theme.Typography.markdownHeading3, .headline) }
-        var code: Font {
-            textScale == 1
-                ? Theme.Typography.code
-                : .system(size: nsFont(.callout).pointSize, design: .monospaced)
+        var rowTitle: Font { font(.rowTitle, Theme.Typography.rowTitle, .body) }
+        var rowTrailing: Font { font(.rowTrailing, Theme.Typography.rowTrailing, .callout) }
+        var sectionHeader: Font {
+            font(.sectionHeader, Theme.Typography.sectionHeader, .subheadline, .medium)
         }
-        var inlineCode: Font { font(Theme.Typography.inlineCode, .body).monospaced() }
-        var bar: Font { font(Theme.Typography.bar, .callout, .medium) }
-        var chip: Font { font(Theme.Typography.chip, .callout) }
-        @MainActor var chipNSFont: NSFont { textScale == 1 ? Theme.Typography.chipNSFont : nsFont(.callout) }
-        var disclosure: Font { font(Theme.Typography.disclosure, .caption1, .semibold) }
-        var menuRow: Font { font(Theme.Typography.menuRow, .body) }
-        var menuShortcut: Font { font(Theme.Typography.menuShortcut, .callout) }
-        var menuIcon: Font { font(Theme.Typography.menuIcon, .body) }
+        var panelTitle: Font { font(.panelTitle, Theme.Typography.panelTitle, .headline) }
+        var calcResult: Font { font(.calcResult, Theme.Typography.calcResult, .title1) }
+        var keyCap: Font { font(.keyCap, Theme.Typography.keyCap, .caption1) }
+        var compactKeyCap: Font { font(.compactKeyCap, Theme.Typography.compactKeyCap, .caption2) }
+        var heroKeyCap: Font { font(.heroKeyCap, Theme.Typography.heroKeyCap, .body) }
+        var markdownHeading1: Font {
+            font(.markdownHeading1, Theme.Typography.markdownHeading1, .title2, .semibold)
+        }
+        var markdownHeading2: Font {
+            font(.markdownHeading2, Theme.Typography.markdownHeading2, .title3, .semibold)
+        }
+        var markdownHeading3: Font {
+            font(.markdownHeading3, Theme.Typography.markdownHeading3, .headline)
+        }
+        var code: Font {
+            isVerbatim(.code)
+                ? Theme.Typography.code
+                : .system(size: nsFont(.callout, .code).pointSize, design: .monospaced)
+        }
+        var inlineCode: Font { font(.inlineCode, Theme.Typography.inlineCode, .body).monospaced() }
+        var bar: Font { font(.bar, Theme.Typography.bar, .callout, .medium) }
+        var chip: Font { font(.chip, Theme.Typography.chip, .callout) }
+        @MainActor var chipNSFont: NSFont {
+            isVerbatim(.chip) ? Theme.Typography.chipNSFont : nsFont(.callout, .chip)
+        }
+        var disclosure: Font { font(.disclosure, Theme.Typography.disclosure, .caption1, .semibold) }
+        var menuRow: Font { font(.menuRow, Theme.Typography.menuRow, .body) }
+        var menuShortcut: Font { font(.menuShortcut, Theme.Typography.menuShortcut, .callout) }
+        var menuIcon: Font { font(.menuIcon, Theme.Typography.menuIcon, .body) }
 
         /// The AppKit twin of a text style, for text an `NSTextView` draws beside SwiftUI's own.
         func textNSFont(
@@ -245,22 +318,31 @@ struct InterfaceMetrics: Equatable, Sendable {
             return .systemFont(ofSize: base.pointSize, weight: weight)
         }
 
+        private func isVerbatim(_ token: InterfaceToken.Typography) -> Bool {
+            textScale == 1 && overrides[.typography(token)] == nil
+        }
+
         /// Like `Theme`'s own: the style carries the face, an explicit weight overrides it.
         private func font(
-            _ base: Font, _ style: NSFont.TextStyle, _ weight: Font.Weight? = nil
+            _ token: InterfaceToken.Typography, _ base: Font, _ style: NSFont.TextStyle,
+            _ weight: Font.Weight? = nil
         )
             -> Font
         {
-            guard textScale != 1 else { return base }
-            let scaled = Font(nsFont(style))
-            return weight.map(scaled.weight) ?? scaled
+            guard !isVerbatim(token) else { return base }
+            let resized = Font(nsFont(style, token))
+            return weight.map(resized.weight) ?? resized
         }
 
         /// Its own descriptor, so `.headline` stays Bold and `.caption2` Medium, not lighter.
-        private func nsFont(_ style: NSFont.TextStyle) -> NSFont {
+        private func nsFont(
+            _ style: NSFont.TextStyle, _ token: InterfaceToken.Typography? = nil
+        ) -> NSFont {
             let base = NSFont.preferredFont(forTextStyle: style)
-            guard textScale != 1 else { return base }
-            return NSFont(descriptor: base.fontDescriptor, size: scaledPoints(base.pointSize, textScale)) ?? base
+            let override = token.flatMap { overrides[.typography($0)] }
+            guard textScale != 1 || override != nil else { return base }
+            let size = override ?? scaledPoints(base.pointSize, textScale)
+            return NSFont(descriptor: base.fontDescriptor, size: size) ?? base
         }
     }
 }
