@@ -92,7 +92,7 @@ If the item is deleted from Settings during editing, Save reports that failure a
 - standard input reading EOF immediately
 - `TINYCAST=1` added to the inherited environment
 - up to 8 KiB of standard error retained for a failure dialog
-- standard output discarded
+- up to 4 KiB of standard output retained for [the confirmation](#show-confirmation)
 
 **Show output** takes a different route entirely — see [Show output](#show-output). Nothing else does.
 

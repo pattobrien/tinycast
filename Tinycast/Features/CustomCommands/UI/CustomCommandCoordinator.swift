@@ -374,6 +374,7 @@ final class CustomCommandCoordinator {
         switch result.termination {
         case .launchFailed: return "The shell could not be started."
         case .stopped: return "Stopped"
+        case .timedOut: return "Timed out"
         case .exited(let status):
             return status == 0 ? "Finished successfully." : "The command exited with status \(status)."
         }
