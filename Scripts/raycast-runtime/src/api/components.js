@@ -182,11 +182,18 @@ function EmptyView(type) {
 /// also makes it safe to invoke directly rather than through JSX.
 function makeSearchDropdown(type) {
   function Dropdown(props) {
-    return h(type, omit(props, ["children"]), props.children);
+    return h(ThrottledSearchDropdown, { type, dropdown: props });
   }
   Dropdown.Item = Section(`${type}.Item`);
   Dropdown.Section = Section(`${type}.Section`);
   return Dropdown;
+}
+
+/// A component of its own, so its hooks never join a caller that invoked `Dropdown` directly.
+function ThrottledSearchDropdown({ type, dropdown }) {
+  const rest = omit(dropdown, ["children"]);
+  rest.onSearchTextChange = useThrottledSearch(dropdown);
+  return h(type, rest, dropdown.children);
 }
 
 List.Item = ListItem;

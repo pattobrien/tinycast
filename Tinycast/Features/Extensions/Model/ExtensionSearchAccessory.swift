@@ -47,6 +47,7 @@ struct ExtensionSearchAccessory: Equatable {
     let storageKey: String?
     let placeholder: String?
     let tooltip: String?
+    let search: ExtensionSearchContract
 
     init?(node: RenderNode?) {
         guard let node, node.type == "List.Dropdown" || node.type == "Grid.Dropdown" else {
@@ -62,6 +63,7 @@ struct ExtensionSearchAccessory: Equatable {
             node.bool("storeValue") == true ? (node.string("id") ?? "searchBarAccessory") : nil
         placeholder = node.string("placeholder")
         tooltip = node.string("tooltip")
+        search = ExtensionSearchContract(node: node)
     }
 
     /// A stored pick counts only while it still names a choice; a dropdown always shows one.

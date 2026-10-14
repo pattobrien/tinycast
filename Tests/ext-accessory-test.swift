@@ -38,6 +38,7 @@ struct ExtensionSearchAccessoryTests {
         parsing()
         seeding()
         searchContract()
+        headerDropdownSearch()
         pickerChosen()
         searchBarAccessories()
         storageIsolation()
@@ -259,6 +260,48 @@ struct ExtensionSearchAccessoryTests {
             "an extension-owned query admits every choice",
             admitted(searched, "ban") == ["Apple", "Banana", "Cherry"])
         check("a query nothing matches admits none", admitted(bare, "zzz") == [])
+    }
+
+    /// A header dropdown reads the same `SearchBarInterface`, and its panel filters through it.
+    static func headerDropdownSearch() {
+        func dropdown(_ props: String) -> ExtensionSearchAccessory? {
+            parse(listJSON.replacingOccurrences(of: #""tooltip":"#, with: props + #","tooltip":"#))
+        }
+        func shown(_ accessory: ExtensionSearchAccessory?, _ query: String) -> [String] {
+            guard let accessory else { return ["no dropdown"] }
+            let filter = accessory.search.filter(for: query)
+            return accessory.items.filter { filter.admits([$0.title]) }.map(\.title)
+        }
+        let handler = #""onSearchTextChange":{"$fn":"9:onSearchTextChange"}"#
+        let local = parse(listJSON)
+        check("a header dropdown without a handler filters locally", local?.search.filtersLocally == true)
+        check(
+            "its panel narrows to the match", shown(local, "fold") == ["Folders"], "\(shown(local, "fold"))")
+        check(
+            "a blank query shows every choice",
+            shown(local, " ") == ["All Types", "Folders", "Workspaces"])
+
+        let searched = dropdown(handler)
+        check(
+            "a header dropdown with a handler hands it the text",
+            searched?.search.textHandler == "9:onSearchTextChange",
+            searched?.search.textHandler ?? "nil")
+        check(
+            "and shows the extension's choices unfiltered",
+            shown(searched, "fold") == ["All Types", "Folders", "Workspaces"],
+            "\(shown(searched, "fold"))")
+        check(
+            "filtering: true filters beside a handler",
+            shown(dropdown(handler + #","filtering":true"#), "fold") == ["Folders"])
+        check("isLoading is read", dropdown(#""isLoading":true"#)?.search.isLoading == true)
+        check("isLoading defaults to false", local?.search.isLoading == false)
+
+        let filter = local?.search.filter(for: "work")
+        check("a match scores", filter?.score(["Folders", "Workspaces"]) != nil)
+        check("no match scores nil", filter?.score(["Folders"]) == nil)
+        check(
+            "an extension-owned query scores every choice 0",
+            searched?.search.filter(for: "work").score(["Folders"]) == 0)
     }
 
     /// What a closed picker reads once a search has replaced the choices under its value.
