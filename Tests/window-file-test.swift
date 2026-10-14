@@ -164,6 +164,41 @@ struct WindowFileTest {
         check("a room with no name is skipped", edited?.records.count == 1)
         check("both are reported", edited?.problems.count == 2)
 
+        var resolving = room
+        resolving.windows[0].resolve = "herdr window-id notes"
+        let resolvingJSON = WindowManagementFileFormat.json(resolving, shortcut: nil, alias: nil)
+        check(
+            "a window writes its resolver",
+            resolvingJSON["windows"]?.items?.first?["resolve"] == .string("herdr window-id notes"))
+        check(
+            "and null when it has none",
+            json["windows"]?.items?.first?["resolve"] == .null)
+        check(
+            "a resolver round-trips",
+            WindowManagementFileFormat.rooms(from: .array([resolvingJSON]))?.records.first?.windows
+                .first?.resolve == "herdr window-id notes")
+
+        let resolvers = WindowManagementFileFormat.rooms(
+            from: .array([
+                .object([
+                    "name": "Resolvers",
+                    "windows": .array([
+                        .object(["app": "a", "resolve": .null]),
+                        .object(["app": "b"]),
+                        .object(["app": "c", "resolve": "  "]),
+                        .object(["app": "d", "resolve": 7])
+                    ])
+                ])
+            ]))
+        check(
+            "null, a missing field, blank text and a wrong type all leave a window without one",
+            resolvers?.records.first?.windows.map(\.resolve) == [nil, nil, nil, nil])
+        check(
+            "only the wrong type is reported",
+            resolvers?.problems == [
+                "room “Resolvers”: window 4: “resolve” needs a command in quotes, or null"
+            ])
+
         let typed = WindowManagementFileFormat.rooms(from: .array([.object(["name": "Typed", "alias": 3])]))
         check(
             "an alias that isn't text is reported",

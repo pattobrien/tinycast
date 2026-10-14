@@ -207,7 +207,8 @@ enum WindowManagementFileFormat {
                 "x": .number(Double(frame.minX)), "y": .number(Double(frame.minY)),
                 "width": .number(Double(frame.width)), "height": .number(Double(frame.height))
             ]),
-            "cell": window.cell.map(json) ?? .null
+            "cell": window.cell.map(json) ?? .null,
+            "resolve": text(window.resolve)
         ])
     }
 
@@ -235,11 +236,13 @@ enum WindowManagementFileFormat {
                     decoded.problems.append("\(label): window \(position + 1) needs an “app”")
                     continue
                 }
+                let windowLabel = "\(label): window \(position + 1)"
                 windows.append(
                     RoomWindow(
                         bundleID: bundleID, appName: window["appName"]?.string ?? bundleID,
                         title: window["title"]?.string ?? "", unitFrame: unitFrame(window["frame"]),
-                        cell: cell(window["cell"])))
+                        cell: cell(window["cell"]),
+                        resolve: command(window["resolve"], label: windowLabel, into: &decoded)))
             }
             var layout = RoomLayoutKind.auto
             if let spelled = item["layout"]?.string {
@@ -351,6 +354,19 @@ enum WindowManagementFileFormat {
             let width = json["width"]?.number, let height = json["height"]?.number
         else { return CGRect(x: 0, y: 0, width: 1, height: 1) }
         return CGRect(x: x, y: y, width: width, height: height)
+    }
+
+    private static func command<Record>(
+        _ json: SettingsFileJSON?, label: String, into decoded: inout Decoded<Record>
+    ) -> String? {
+        switch json {
+        case nil, .null?: return nil
+        case .string(let text)?:
+            return text.allSatisfy(\.isWhitespace) ? nil : text
+        default:
+            decoded.problems.append("\(label): “resolve” needs a command in quotes, or null")
+            return nil
+        }
     }
 
     private static func cell(_ json: SettingsFileJSON?) -> RoomGrid.Cell? {

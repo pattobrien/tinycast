@@ -23,6 +23,8 @@ final class RoomSession {
     /// Every window the picker offers: visible ones front to back, then parked, hidden, minimized.
     private(set) var pickable: [RoomLiveWindow] = []
     private(set) var picked: [Pick] = []
+    /// Only the settings file writes a resolver, so saving the picks must carry each one over.
+    @ObservationIgnored private(set) var resolvers: [Pick: String] = [:]
     private(set) var editingID: UUID?
     /// The picker's search field filters, so the room's name is held here.
     private(set) var roomName = ""
@@ -40,10 +42,14 @@ final class RoomSession {
         revision &+= 1
     }
 
-    func beginPicking(named name: String, editing id: UUID?, picked picks: [Pick]) {
+    func beginPicking(
+        named name: String, editing id: UUID?, picked picks: [Pick],
+        resolvers: [Pick: String] = [:]
+    ) {
         roomName = name
         editingID = id
         picked = picks
+        self.resolvers = resolvers
     }
 
     func togglePick(_ pick: Pick) {
@@ -58,6 +64,7 @@ final class RoomSession {
         snapshot = nil
         pickable = []
         picked = []
+        resolvers = [:]
         editingID = nil
         roomName = ""
         isLoaded = false

@@ -13,10 +13,13 @@ struct RoomWindow: Codable, Hashable, Sendable {
     /// Where it sits under `.saved`, as a fraction of the display's visible frame.
     var unitFrame: CGRect
     var cell: RoomGrid.Cell?
+    /// A shell command that prints this window's number on entry; see window-rooms.md.
+    var resolve: String?
 
     init(
         bundleID: String, appName: String, title: String, windowID: UInt32? = nil,
-        unitFrame: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1), cell: RoomGrid.Cell? = nil
+        unitFrame: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1), cell: RoomGrid.Cell? = nil,
+        resolve: String? = nil
     ) {
         self.bundleID = bundleID
         self.appName = appName
@@ -24,6 +27,7 @@ struct RoomWindow: Codable, Hashable, Sendable {
         self.windowID = windowID
         self.unitFrame = unitFrame
         self.cell = cell
+        self.resolve = resolve
     }
 
     /// Four decimal places, so a stored fraction reads cleanly and resolves to the same point.
@@ -50,7 +54,7 @@ struct RoomWindow: Codable, Hashable, Sendable {
 
     // Hand-written, so an added field keeps stored rooms and older backups readable.
     private enum CodingKeys: String, CodingKey {
-        case bundleID, appName, title, windowID, unitFrame, cell
+        case bundleID, appName, title, windowID, unitFrame, cell, resolve
     }
 
     init(from decoder: Decoder) throws {
@@ -63,5 +67,6 @@ struct RoomWindow: Codable, Hashable, Sendable {
             try container.decodeIfPresent(CGRect.self, forKey: .unitFrame)
             ?? CGRect(x: 0, y: 0, width: 1, height: 1)
         cell = try container.decodeIfPresent(RoomGrid.Cell.self, forKey: .cell)
+        resolve = try container.decodeIfPresent(String.self, forKey: .resolve)
     }
 }
