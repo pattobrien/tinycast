@@ -45,6 +45,16 @@ struct UpdatesTests {
         expect(AppVersion("0.2.0-beta.42")?.description == "0.2.0-beta.42", "round-trips a beta")
         expect(AppVersion("0.2.1")?.isPrerelease == false, "a plain triple is not a prerelease")
         expect(AppVersion("0.2.0-beta.1")?.isPrerelease == true, "a beta is a prerelease")
+        expect(AppVersion("0.2.1-fork.3")?.fork == 3, "reads the fork counter")
+        expect(AppVersion("0.2.1-fork.3")?.beta == nil, "a fork of a release has no beta")
+        expect(AppVersion("v0.11.21-beta.120-fork.1")?.beta == 120, "reads a forked beta's counter")
+        expect(AppVersion("v0.11.21-beta.120-fork.1")?.fork == 1, "and its fork counter")
+        expect(
+            AppVersion("0.11.21-beta.120-fork.1")?.description == "0.11.21-beta.120-fork.1",
+            "round-trips a forked beta")
+        expect(AppVersion("0.2.1-fork.3")?.description == "0.2.1-fork.3", "round-trips a fork")
+        expect(AppVersion("0.2.1-fork.3")?.isPrerelease == false, "a forked release is not a prerelease")
+        expect(AppVersion("0.2.0-beta.1-fork.1")?.isPrerelease == true, "a forked beta is a prerelease")
 
         expect(AppVersion("0.2") == nil, "rejects a two-part version")
         expect(AppVersion("0.2.1.3") == nil, "rejects a four-part version")
@@ -53,6 +63,12 @@ struct UpdatesTests {
         expect(AppVersion("0.2.0-alpha.1") == nil, "rejects a channel that never ships")
         expect(AppVersion("0.2.0-beta") == nil, "rejects a beta with no counter")
         expect(AppVersion("0.2.0-beta.x") == nil, "rejects a non-numeric beta counter")
+        expect(AppVersion("0.2.0-fork.") == nil, "rejects a fork with no counter")
+        expect(AppVersion("0.2.0-fork.x") == nil, "rejects a non-numeric fork counter")
+        expect(AppVersion("0.2.0-rc.1") == nil, "rejects a release candidate")
+        expect(AppVersion("0.2.0-fork.1-beta.2") == nil, "rejects a fork before its beta")
+        expect(AppVersion("0.2.0-fork.1-fork.2") == nil, "rejects a second fork counter")
+        expect(AppVersion("0.2.0-beta.1-") == nil, "rejects a trailing hyphen")
         expect(AppVersion("") == nil, "rejects an empty string")
         expect(AppVersion("nightly") == nil, "rejects a name")
     }
@@ -77,6 +93,20 @@ struct UpdatesTests {
         expect(
             version("0.2.0-beta.1") != version("0.2.0"),
             "a prerelease is never equal to its release")
+
+        let forkLadder = [
+            "0.11.21-beta.120", "0.11.21-beta.120-fork.1", "0.11.21-beta.120-fork.2",
+            "0.11.21", "0.11.21-fork.1", "0.11.22",
+        ].map(version)
+        expect(
+            zip(forkLadder, forkLadder.dropFirst()).allSatisfy { $0 < $1 },
+            "a fork sorts above its upstream version and below the next one")
+        expect(
+            version("0.2.0-beta.2") > version("0.2.0-beta.1-fork.9"),
+            "a newer beta outranks a fork of an older one")
+        expect(
+            version("0.2.0-fork.1") != version("0.2.0"),
+            "a fork is never equal to its upstream version")
     }
 
     static func roundTripsVersionsThroughJSON() {
@@ -95,6 +125,10 @@ struct UpdatesTests {
         expect(
             (try? JSONDecoder().decode(AppVersion.self, from: Data("\"junk\"".utf8))) == nil,
             "a corrupt cached version fails to decode instead of defaulting")
+        expect(
+            (try? JSONDecoder().decode(AppVersion.self, from: Data("\"0.2.0-beta.7-fork.2\"".utf8)))
+                == AppVersion("0.2.0-beta.7-fork.2"),
+            "a cached fork version decodes")
     }
 
     // MARK: - ReleaseChannel
