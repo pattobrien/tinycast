@@ -69,7 +69,7 @@ Add a token rather than a magic number when introducing a new value.
 extension list panel, Quick Actions, dialogs and HUDs. Settings, Onboarding,
 Support, Update, About and Notes never scale.
 
-`DesignSystem/InterfaceMetrics.swift` stores three things, and derives every value from a `Theme`
+`DesignSystem/InterfaceMetrics.swift` stores four things, and derives every value from a `Theme`
 literal, so `Theme` stays the one place a number is written down:
 
 - `scale` multiplies every geometry token outside the chrome table.
@@ -78,8 +78,11 @@ literal, so `Theme` stays the one place a number is written down:
   header glyph sizes, header height, padding and glyph slot, both row icons, `spacing.rowVertical`,
   `radius.row`, `radius.panel` and the bottom bar. `Chrome.scaled(_:)` builds each one from its
   `Theme` token at `scale`.
+- `overrides` maps an `InterfaceToken`, which names each of its values, to that value's final points.
+  An override wins over `scale`, `textScale` and `chrome`, and a derived value follows its overridden
+  inputs.
 
-`init(scale:)` sets all three from one multiplier, which is how Default, Large and Larger are built.
+`init(scale:)` sets the first three from one multiplier, which is how Default, Large and Larger are built.
 
 **Micro** is the dense palette, close to VS Code's Command Palette. A plain smaller multiplier would
 shrink body text to about 9pt, so Micro keeps `textScale` at 1 (Theme's text styles verbatim), states its
