@@ -52,6 +52,7 @@ struct PalettePlacementTests {
         snapping()
         expandedDetentFollowsGeometry()
         menuPanelAnchors()
+        anchoringOverARegion()
         tokenGrammar()
         everyInterfaceSize()
 
@@ -80,6 +81,33 @@ struct PalettePlacementTests {
         expect(
             offset.y, external.maxY - external.height * topFraction,
             "and its top edge is measured from its own maxY")
+    }
+
+    // MARK: - A deeplink's frame
+
+    static func overRegion(_ region: CGRect, on visibleFrame: CGRect) -> CGPoint {
+        PalettePlacement.anchor(
+            within: region, width: 600, height: 400, topMarginFraction: 0.18,
+            visibleFrame: visibleFrame)
+    }
+
+    static func anchoringOverARegion() {
+        let centred = overRegion(CGRect(x: 1480, y: 860, width: 1040, height: 540), on: laptop)
+        expect(centred.x, 1700, "a 600pt panel centres over the region")
+        expect(centred.y, 1302.8, "its top edge sits 18% of the region's height below its top")
+
+        let narrow = overRegion(CGRect(x: 20, y: 600, width: 300, height: 400), on: laptop)
+        expect(narrow.x, 0, "a region narrower than the panel centres, then clamps to the left edge")
+        expect(narrow.y, 928, "and keeps the region's top-edge rule")
+
+        let docked = CGRect(x: 0, y: 80, width: 2560, height: 1335)
+        let low = overRegion(CGRect(x: 1000, y: 60, width: 800, height: 200), on: docked)
+        expect(low.x, 1100, "a region near the bottom still centres horizontally")
+        expect(low.y, 480, "and lifts so the expanded panel's bottom sits on the Dock's top")
+
+        let pastRight = overRegion(CGRect(x: 2300, y: 600, width: 800, height: 400), on: laptop)
+        expect(pastRight.x, 1960, "a region past the right edge clamps to the display's right edge")
+        expect(pastRight.y, 928, "without moving vertically")
     }
 
     // MARK: - Restoring a stored position

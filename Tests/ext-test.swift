@@ -188,6 +188,7 @@ struct ExtensionTests {
         navigationSearchChecks()
         actionIconChecks()
         deepLinkChecks()
+        deepLinkFrameChecks()
         nodeShimChecks()
         await runtimeChecks()
         await bundledModuleChecks()
@@ -995,6 +996,44 @@ struct ExtensionTests {
         check(
             "deeplink rejects another extension",
             canonical?.matches(manifestName: "other/other") == false)
+    }
+
+    static func deepLinkFrameChecks() {
+        func frame(_ link: String) -> CGRect? {
+            let url = URL(string: link)!
+            let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            return PalettePlacementRequest.parse(items)?.windowServerRegion
+        }
+        check(
+            "frame parses x, y, width and height",
+            frame("tinycast://extensions/demo/search?frame=1480,860,1040,540")
+                == CGRect(x: 1480, y: 860, width: 1040, height: 540))
+        check(
+            "frame matches its name case-insensitively",
+            frame("tinycast://extensions/demo/search?FRAME=10,20,300,400")
+                == CGRect(x: 10, y: 20, width: 300, height: 400))
+        check(
+            "frame with three numbers is ignored",
+            frame("tinycast://extensions/demo/search?frame=10,20,300") == nil)
+        check(
+            "frame with a zero width is ignored",
+            frame("tinycast://extensions/demo/search?frame=10,20,0,400") == nil)
+        check(
+            "frame with a non-numeric field is ignored",
+            frame("tinycast://extensions/demo/search?frame=10,top,300,400") == nil)
+        check(
+            "frame with a non-finite field is ignored",
+            frame("tinycast://extensions/demo/search?frame=nan,20,300,400") == nil)
+        check(
+            "a link without frame carries no placement",
+            frame("tinycast://extensions/demo/search?launchType=background") == nil)
+        let beside = "tinycast://extensions/demo/search?fallbackText=hello&frame=10,20,300,400"
+        check(
+            "frame beside fallbackText still parses",
+            frame(beside) == CGRect(x: 10, y: 20, width: 300, height: 400))
+        check(
+            "and the command still reads its fallbackText",
+            ExtensionDeepLink.parse(url: URL(string: beside)!)?.fallbackText == "hello")
     }
 
     static func navigationSearchChecks() {
