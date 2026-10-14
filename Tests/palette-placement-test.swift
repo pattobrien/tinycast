@@ -374,5 +374,18 @@ struct PalettePlacementTests {
                     visibleFrame: laptop, minimumVisible: minimumVisible) == nil,
                 "a bar dragged fully past the right edge is dropped \(label)")
         }
+
+        let micro = InterfaceSize.micro.metrics
+        let microBar = CGSize(width: micro.size.panelWidth, height: micro.size.compactHeight)
+        expect(
+            PalettePlacement.restored(
+                CGPoint(x: 100, y: 40), graspable: microBar, visibleFrame: laptop,
+                minimumVisible: minimumVisible) == CGPoint(x: 100, y: 40),
+            "a micro bar shown whole at the display's bottom is grabbable")
+        expect(
+            PalettePlacement.restored(
+                CGPoint(x: 100, y: 39), graspable: microBar, visibleFrame: laptop,
+                minimumVisible: minimumVisible) == nil,
+            "a micro bar cut by a point at the display's bottom is dropped")
     }
 }

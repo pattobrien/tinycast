@@ -27,6 +27,7 @@ struct InterfaceSizeTests {
         everySizeRounds()
         sizesGrow()
         derivationsHold()
+        microStatesItsChrome()
         theEnumIsWellFormed()
 
         print("\(passes) passed, \(failures) failed")
@@ -241,7 +242,7 @@ struct InterfaceSizeTests {
 
     /// Weakly, not strictly: a 2pt gap rounds to 2 at 1.1, which is the only way to draw it.
     static func sizesGrow() {
-        let ordered = [InterfaceSize.standard, .large, .larger]
+        let ordered = [InterfaceSize.micro, .standard, .large, .larger]
         for (smaller, larger) in zip(ordered, ordered.dropFirst()) {
             let a = lengths(smaller.metrics)
             let b = lengths(larger.metrics)
@@ -283,8 +284,27 @@ struct InterfaceSizeTests {
         }
     }
 
+    static func microStatesItsChrome() {
+        let m = InterfaceSize.micro.metrics
+        expect(m.size.panelWidth, 600, "micro panel width")
+        expect(m.size.panelHeight, 380, "micro panel height")
+        expect(m.size.headerHeight, 28, "micro header height")
+        expect(m.size.headerPadding, 6, "micro header padding")
+        expect(m.size.compactHeight, 40, "micro compact bar")
+        expect(m.typography.searchFieldSize, 13, "micro search field size")
+        expect(m.size.resultRowIcon, 16, "micro result row icon")
+        expect(m.size.rowIcon, 16, "micro row icon")
+        expect(m.spacing.rowVertical, 3, "micro row vertical padding")
+        expect(m.size.resultRowIcon + m.spacing.rowVertical * 2, 22, "micro row pitch")
+        expect(m.radius.row, 3, "micro row radius")
+        expect(m.radius.panel, 12, "micro panel radius")
+        expect(m.size.bottomBarHeight, 32, "micro bottom bar")
+        expect(m.typography.rowTitle == Theme.Typography.rowTitle, "micro row titles are Theme's")
+    }
+
     static func theEnumIsWellFormed() {
         expect(InterfaceSize.standard.metrics == .standard, "the default size changes nothing")
+        expect(InterfaceSize(rawValue: "micro") == .micro, "micro reads from its raw value")
         expect(InterfaceSize(rawValue: "huge") == nil, "an unknown raw value is rejected")
         expect(
             InterfaceSize.allCases.count == Set(InterfaceSize.allCases.map(\.title)).count,

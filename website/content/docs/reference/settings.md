@@ -28,7 +28,7 @@ There are 21 panes in four groups.
 | Include Shift (⇧)                 | On · Off                                                           | **On**                            |
 | Secure Input Compatibility        | On · Off (Caps Lock only)                                          | **Off**                           |
 | Theme                             | System · Light · Dark                                              | **System**                        |
-| Interface size                    | Default · Large · Larger                                           | **Default**                       |
+| Interface size                    | Micro · Default · Large · Larger                                   | **Default**                       |
 | Background transparency           | Less to More, with Reset                                           | Middle                            |
 | Compact mode                      | On · Off                                                           | Off                               |
 | Show favorites in compact mode    | On · Off                                                           | **On**                            |
