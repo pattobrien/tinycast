@@ -69,15 +69,25 @@ Add a token rather than a magic number when introducing a new value.
 extension list panel, Quick Actions, dialogs and HUDs. Settings, Onboarding,
 Support, Update, About and Notes never scale.
 
-`DesignSystem/InterfaceMetrics.swift` stores **only a scale** and derives every value from the `Theme`
-literal, so `Theme` stays the one place a number is written down. **In any view a scaled surface can
-reach, read `@Environment(\.metrics)` rather than `Theme.Spacing/Radius/Size/Typography`** — the key
-defaults to `.standard`, so a shared `DesignSystem/` component renders unscaled in Settings without
-being forked. An AppKit site reads `settings.interfaceSize.metrics` where it computes its frame.
+`DesignSystem/InterfaceMetrics.swift` stores three things, and derives every value from a `Theme`
+literal, so `Theme` stays the one place a number is written down:
+
+- `scale` multiplies every geometry token outside the chrome table.
+- `textScale` sizes the text styles. At 1 they are `Theme`'s fonts verbatim.
+- `chrome` is the `Chrome` table of launcher tokens a size may state outright: the search field and
+  header glyph sizes, header height, padding and glyph slot, both row icons, `spacing.rowVertical`,
+  `radius.row`, `radius.panel` and the bottom bar. `Chrome.scaled(_:)` builds each one from its
+  `Theme` token at `scale`.
+
+`init(scale:)` sets all three from one multiplier, which is how Default, Large and Larger are built.
+
+**In any view a scaled surface can reach, read `@Environment(\.metrics)` rather than
+`Theme.Spacing/Radius/Size/Typography`** — the key defaults to `.standard`, so a shared `DesignSystem/`
+component renders unscaled in Settings without being forked. An AppKit site reads `settings.interfaceSize.metrics` where it computes its frame.
 
 A length measured against the **screen** does not scale; a length measured against **our own content**
 does. So `hairline`, `paletteTopMarginFraction`, `paletteSnapDistance`, `paletteMinimumVisible`, the
-drop-guide dashes, `hudEdgeOffset` and every row *count* stay on `Theme`, as does every chrome token.
+drop-guide dashes, `hudEdgeOffset` and every row *count* stay on `Theme`.
 
 Scaling rounds to whole points, once, at the leaf accessor. A **derived** token composes already
 scaled parts (`compactHeight`, `menuRowHeight`) rather than scaling the derived result, so an AppKit
@@ -89,6 +99,8 @@ this, member by member, including that `.standard` is `Theme` verbatim.
 `xxs 2` · `xs 4` · `sm 6` · `md 8` · `lg 10` · `xl 12` · `dialogInset 18` · `xxl 20`
 
 `xxs` is the tight gap between adjacent keycap chips (used everywhere keycaps sit side by side).
+
+A palette list row pads its content vertically by `rowVertical 6`.
 
 Row content insets are `md`; list horizontal inset is `md`; the search icon aligns with rows via
 `md * 2`; the `xl` gap after it starts the query on the row titles' column.
@@ -201,7 +213,7 @@ System text styles only — **no fixed point sizes in views**. Two named excepti
 `rowTrailing`/`bar`/`menuRow`/`keyCap` etc. as named.
 
 `InterfaceMetrics.Typography` scales a style by rebuilding its `NSFont` **from that font's own
-descriptor** at the scaled point size. Never reconstruct one as `.system(size:weight:)` from a
+descriptor** at its `textScale` point size. Never reconstruct one as `.system(size:weight:)` from a
 hand-written weight table: on macOS `.headline` is Bold and `.caption2` is Medium, so a table
 *lightens* them the moment the user leaves the default size. `menuSymbol` is the deliberate exception:
 it is an explicitly-sized glyph treatment, not a system text style, so scaling preserves Medium.
