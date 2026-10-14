@@ -32,6 +32,7 @@ struct InterfaceOverridesTests {
         try theFileApplies()
         try badValuesKeepTheirOverride()
         try theObjectIsTheWholeSet()
+        try hugeValuesAreRefused()
         try theFileRoundTrips()
         storedOverridesDropWhatNoTokenAccepts()
         try theDocsListEveryKey()
@@ -99,6 +100,9 @@ struct InterfaceOverridesTests {
         expect(
             button.size.dialogButtonHeight, 38,
             "a dialog button stays its reduction below an overridden menu button")
+        expect(
+            InterfaceMetrics.standard.overriding([.size(.menuButton): 0]).size.dialogButtonHeight, 0,
+            "a dialog button below a zero menu button stops at 0")
     }
 
     static func noOverrideKeepsThemeVerbatim() {
@@ -360,7 +364,7 @@ struct InterfaceOverridesTests {
         expect(points(m.typography.rowTitle), 12, "typography.rowTitle resolves to 12 pt")
         expect(
             decoded.problems == [
-                "“radius.row” must be a number of points, 0 or more",
+                "“radius.row” must be a number of points from 0 to 10000",
                 "no design token is called “spacing.bogus”"
             ], "each bad entry is reported once — got \(decoded.problems)")
     }
@@ -377,9 +381,9 @@ struct InterfaceOverridesTests {
             ], "a fraction and a zero length apply; a bad value keeps or leaves unset")
         expect(
             decoded?.problems == [
-                "“spacing.lg” must be a number of points, 0 or more",
-                "“typography.bar” must be a number of points, more than 0",
-                "“typography.chip” must be a number of points, more than 0"
+                "“spacing.lg” must be a number of points from 0 to 10000",
+                "“typography.bar” must be a number of points more than 0 and at most 10000",
+                "“typography.chip” must be a number of points more than 0 and at most 10000"
             ], "a negative length and a non-positive font are reported — got \(decoded?.problems ?? [])")
     }
 
@@ -397,6 +401,24 @@ struct InterfaceOverridesTests {
                 InterfaceOverridesFileFormat.overrides(from: json, current: current) == nil,
                 "\(text) is not an object")
         }
+    }
+
+    static func hugeValuesAreRefused() throws {
+        let json = try file(
+            #"{"size.panelWidth": 1e20, "size.panelHeight": 10000, "typography.rowTitle": 10001}"#)
+        let decoded = InterfaceOverridesFileFormat.overrides(
+            from: json, current: [.size(.panelWidth): 900])
+        expect(
+            decoded?.overrides == [.size(.panelWidth): 900, .size(.panelHeight): 10_000],
+            "a length over 10000 keeps its override and 10000 itself applies")
+        expect(
+            decoded?.problems == [
+                "“size.panelWidth” must be a number of points from 0 to 10000",
+                "“typography.rowTitle” must be a number of points more than 0 and at most 10000"
+            ], "a value over the bound is reported — got \(decoded?.problems ?? [])")
+        expect(
+            InterfaceToken.overrides(stored: ["size.panelWidth": 1e20]) == [:],
+            "a stored value over the bound drops")
     }
 
     static func theFileRoundTrips() throws {
