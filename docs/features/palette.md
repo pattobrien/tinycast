@@ -312,7 +312,8 @@ Changing Interface Size shifts each saved left edge by half the width difference
 launcher's horizontal centre on every display.
 
 **The display is chosen first, by the setting below.** `PalettePlacement.restored` drops the corner once
-that display shows less than `Theme.Size.paletteMinimumVisible` of the compact bar. Dropping at the
+that display shows less than `Theme.Size.paletteMinimumVisible` of the compact bar, or less than its
+whole height when the bar is shorter than that, as Micro's is. Dropping at the
 home detent clears that display's stored position.
 
 The lower expanded-centre detent also records its display separately, so restoring it recomputes

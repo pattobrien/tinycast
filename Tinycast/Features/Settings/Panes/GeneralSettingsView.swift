@@ -227,13 +227,18 @@ private struct WindowModeButtonStyle: ButtonStyle {
     }
 }
 
-/// Three glyph steps read as a legend; a true-to-scale "Aa" would look identical at 1.1.
+/// Stepped glyphs read as a legend; a true-to-scale "Aa" would look identical at 1.1.
 private struct InterfaceSizeRow: View {
     @Environment(AppSettings.self) private var settings
 
-    private static let glyph: [InterfaceSize: CGFloat] = [
-        .standard: 11, .large: 14, .larger: 17
-    ]
+    private static func glyph(_ size: InterfaceSize) -> CGFloat {
+        switch size {
+        case .micro: 8
+        case .standard: 11
+        case .large: 14
+        case .larger: 17
+        }
+    }
 
     var body: some View {
         SettingsRow(
@@ -255,7 +260,7 @@ private struct InterfaceSizeRow: View {
             settings.interfaceSize = size
         } label: {
             Text("Aa")
-                .font(.system(size: Self.glyph[size] ?? 13, weight: .medium))
+                .font(.system(size: Self.glyph(size), weight: .medium))
                 .foregroundStyle(selected ? Color.primary : Color.secondary)
                 .settingsOptionSegment(isSelected: selected)
         }

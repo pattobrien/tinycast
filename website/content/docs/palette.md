@@ -107,7 +107,7 @@ unplug a monitor. Positions aren't included in backups, since they don't carry o
 | Setting                        | Options                                | Default     |
 | ------------------------------ | -------------------------------------- | ----------- |
 | Theme                          | System · Light · Dark                  | **System**  |
-| Interface size                 | Default · Large · Larger               | **Default** |
+| Interface size                 | Micro · Default · Large · Larger       | **Default** |
 | Background transparency        | A slider from Less to More, with Reset | Middle      |
 | Compact mode                   | On · Off                               | Off         |
 | Show favorites in compact mode | On · Off                               | On          |
@@ -115,8 +115,9 @@ unplug a monitor. Positions aren't included in backups, since they don't carry o
 **Theme.** System follows macOS whenever it changes. Light uses the same design with inverted
 colors, and the layout, type and animations stay the same.
 
-**Interface size** makes the palette and its floating windows 10% or 20% larger. The Settings window
-stays the same size.
+**Interface size** makes the palette and its floating windows 10% or 20% larger. Micro is a compact
+palette like VS Code's command palette: shorter rows, smaller icons and a slimmer search bar, with text
+kept at its normal size. The Settings window stays the same size.
 
 **Background transparency** sets how much of the desktop shows through the glass. **Reset** restores
 the original look.
