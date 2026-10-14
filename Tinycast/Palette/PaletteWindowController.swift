@@ -16,6 +16,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
     private(set) var isPoppedToRoot = false
     /// Resolved once per show; the top edge is the one that must not drift.
     private var anchor: CGPoint?
+    private var placementRequest: PalettePlacementRequest?
     /// Live only between mouse-down and mouse-up on a drag handle; nil means a move was ours.
     private var drag: DragSession?
     private let dropGuides = PaletteDropGuideController()
@@ -45,6 +46,13 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
     }
 
     var isVisible: Bool { panel?.isVisible ?? false }
+
+    func place(_ request: PalettePlacementRequest) {
+        placementRequest = request
+        guard let panel, panel.isVisible else { return }
+        anchor = nil
+        positionPanel(panel, collapsed: core.paletteCoordinator.paletteIsCollapsed)
+    }
 
     /// Where the panel sits in screen coordinates, so an overlay drawn under it can avoid it.
     var visibleFrame: CGRect? { panel.flatMap { $0.isVisible ? $0.frame : nil } }
@@ -161,6 +169,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
         core.clipboardStore.setTextSearchActive(false)
         // Drop the anchor, so the next summon re-resolves for the screen in use then.
         anchor = nil
+        placementRequest = nil
         // The guides must never outlive the panel they point at.
         drag = nil
         dropGuides.hide()
@@ -299,7 +308,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
         let session = drag
         drag = nil
         dropGuides.hide()
-        guard let session, session.moved, let anchor else { return }
+        guard let session, session.moved, let anchor, placementRequest == nil else { return }
         if session.snap.centeredX && session.snap.height == .home {
             core.settings.setPalettePosition(nil, on: session.displayKey, expandedCenter: false)
             return
@@ -498,6 +507,10 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
     /// Cached until hide, so both placements read one `visibleFrame`; a drag outranks the setting.
     private func resolveAnchor() -> CGPoint? {
         if let anchor { return anchor }
+        if let placementRequest, let placed = requestedAnchor(placementRequest) {
+            anchor = placed
+            return placed
+        }
         let resolved = targetScreen().flatMap { restoredAnchor(on: $0) ?? defaultAnchor(on: $0) }
         anchor = resolved
         return resolved
@@ -519,6 +532,32 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             graspable: CGSize(width: metrics.size.panelWidth, height: metrics.size.compactHeight),
             visibleFrame: screen.visibleFrame,
             minimumVisible: Theme.Size.paletteMinimumVisible)
+    }
+
+    private func requestedAnchor(_ request: PalettePlacementRequest) -> CGPoint? {
+        guard let region = appKitRect(fromWindowServer: request.windowServerRegion) else { return nil }
+        let screen =
+            NSScreen.screens.filter { $0.frame.intersects(region) }
+            .max { overlapArea($0.frame, region) < overlapArea($1.frame, region) }
+            ?? targetScreen()
+        guard let screen else { return nil }
+        return PalettePlacement.anchor(
+            within: region, width: metrics.size.panelWidth, height: metrics.size.panelHeight,
+            topMarginFraction: Theme.Size.paletteTopMarginFraction,
+            visibleFrame: screen.visibleFrame)
+    }
+
+    /// Both coordinate spaces hang off the primary display, so one flip about its height converts.
+    private func appKitRect(fromWindowServer rect: CGRect) -> CGRect? {
+        guard let primary = NSScreen.primary else { return nil }
+        return CGRect(
+            x: rect.minX, y: primary.frame.height - rect.maxY, width: rect.width,
+            height: rect.height)
+    }
+
+    private func overlapArea(_ first: CGRect, _ second: CGRect) -> CGFloat {
+        let shared = first.intersection(second)
+        return shared.width * shared.height
     }
 
     private func defaultAnchor(on screen: NSScreen) -> CGPoint {

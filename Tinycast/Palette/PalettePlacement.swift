@@ -24,6 +24,17 @@ enum PalettePlacement {
         CGPoint(x: visibleFrame.minX + offset.x, y: visibleFrame.maxY - offset.y)
     }
 
+    static func anchor(
+        within region: CGRect, width: CGFloat, height: CGFloat, topMarginFraction: CGFloat,
+        visibleFrame: CGRect
+    ) -> CGPoint {
+        let x = region.midX - width / 2
+        let top = region.maxY - region.height * topMarginFraction
+        return CGPoint(
+            x: min(max(x, visibleFrame.minX), max(visibleFrame.maxX - width, visibleFrame.minX)),
+            y: max(min(top, visibleFrame.maxY), min(visibleFrame.minY + height, visibleFrame.maxY)))
+    }
+
     static func expandedCenterY(in visibleFrame: CGRect, expandedHeight: CGFloat) -> CGFloat {
         visibleFrame.midY + expandedHeight / 2
     }

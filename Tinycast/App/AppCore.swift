@@ -469,6 +469,10 @@ final class AppCore {
 
     func handleOpenURL(_ url: URL) {
         guard ExtensionDeepLink.claims(url) else { return }
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        if let placement = PalettePlacementRequest.parse(items) {
+            paletteCoordinator.place(placement)
+        }
         guard let route = ExtensionDeepLink.route(url: url) else {
             paletteCoordinator.showPalette(mode: .launcher, restoreAnyMode: true)
             return
