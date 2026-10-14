@@ -87,23 +87,6 @@ struct ExtensionToast: Sendable, Equatable, Identifiable {
     }
 }
 
-struct ExtensionAlert: Sendable {
-    var title: String
-    var message: String?
-    var primaryTitle: String
-    var dismissTitle: String
-    var isDestructive: Bool
-
-    init(payload: [String: RenderValue]) {
-        title = payload["title"]?.stringValue ?? "Are you sure?"
-        message = payload["message"]?.stringValue
-        let primary = payload["primaryAction"]?.objectValue
-        primaryTitle = primary?["title"]?.stringValue ?? "Confirm"
-        dismissTitle = payload["dismissAction"]?.objectValue?["title"]?.stringValue ?? "Cancel"
-        isDestructive = primary?["style"]?.stringValue == "destructive"
-    }
-}
-
 enum ExtensionHostError: LocalizedError {
     case noActiveExtension
     case unknown(String)
@@ -368,6 +351,10 @@ final class ExtensionHostBridge: ExtensionHostAPI {
 
     private func feedback(method: String, arguments: [RenderValue]) async throws -> Any? {
         guard let context else { throw ExtensionHostError.noActiveExtension }
+        if method == "confirmAlert" {
+            guard let payload = arguments.first?.objectValue else { return false }
+            return await context.confirmAlert(ExtensionAlert(payload: payload))
+        }
         guard context.activeLaunchType != .background else { return nil }
         switch method {
         case "showToast":
@@ -388,10 +375,6 @@ final class ExtensionHostBridge: ExtensionHostAPI {
         case "showHUD":
             context.showHUD(arguments.first?.stringValue ?? "")
             return nil
-
-        case "confirmAlert":
-            guard let payload = arguments.first?.objectValue else { return false }
-            return await context.confirmAlert(ExtensionAlert(payload: payload))
 
         default:
             throw ExtensionHostError.unknown("feedback.\(method)")

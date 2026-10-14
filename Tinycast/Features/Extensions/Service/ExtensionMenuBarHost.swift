@@ -45,8 +45,8 @@ final class ExtensionMenuBarHost: ExtensionHostContext {
     }
 
     func confirmAlert(_ alert: ExtensionAlert) async -> Bool {
-        guard isInteractive else { return false }
-        return await coordinator?.confirmExtensionAlert(alert) ?? false
+        await coordinator?.confirmExtensionAlert(
+            alert, from: reference, launchType: activeLaunchType) ?? false
     }
 
     func openWithPicker(path: String) async { await manager?.openWithPicker(path: path) }

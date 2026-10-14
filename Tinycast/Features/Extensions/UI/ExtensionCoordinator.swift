@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 /// How a command meets the palette: launching, leaving, and the host callbacks it can make.
 @MainActor
@@ -215,6 +216,14 @@ final class ExtensionCoordinator {
         extensions.setMenuBarEnabled(enabled, reference: reference)
     }
 
+    func hasRememberedAlertAnswers(_ reference: ExtensionCommandRef) -> Bool {
+        extensions.storage.hasRememberedAnswers(for: reference)
+    }
+
+    func resetRememberedAlertAnswers(_ reference: ExtensionCommandRef) {
+        extensions.storage.forgetRememberedAnswers(for: reference)
+    }
+
     func commandArguments(for entry: AppEntry?) -> [ExtensionCommandArgument]? {
         guard let entry, entry.kind == .extensionCommand,
             let (_, command) = extensions.resolve(entry), !command.arguments.isEmpty
@@ -286,14 +295,42 @@ final class ExtensionCoordinator {
     }
 
     /// The dialog outranks the palette, so a view command keeps its screen behind it.
-    func confirmExtensionAlert(_ alert: ExtensionAlert) async -> Bool {
-        NSApp.activate(ignoringOtherApps: true)
-        return await core.confirm(
-            title: alert.title, message: alert.message,
-            symbol: alert.isDestructive ? "exclamationmark.triangle" : "questionmark.circle",
-            confirmTitle: alert.primaryTitle,
-            tone: alert.isDestructive ? .danger : .neutral,
-            confirmRole: alert.isDestructive ? .destructive : .standard,
-            dismissTitle: alert.dismissTitle)
+    func confirmExtensionAlert(
+        _ alert: ExtensionAlert, from command: ExtensionCommandRef?,
+        launchType: ExtensionLaunchType
+    ) async -> Bool {
+        let assetsPath = command.flatMap { extensions.extensionNamed($0.extensionName) }?.assetsPath
+        return await ExtensionAlertMemory.confirm(
+            alert, from: command, launchType: launchType, storage: extensions.storage
+        ) { alert, offersRemember in
+            NSApp.activate(ignoringOtherApps: true)
+            let remember = ExtensionRememberChoice()
+            let request = DialogRequest(
+                title: alert.title, message: alert.message,
+                icon: dialogIcon(for: alert, assetsPath: assetsPath),
+                tone: alert.isDestructive ? .danger : .neutral,
+                actions: [
+                    DialogAction(
+                        title: alert.primaryTitle,
+                        role: alert.isDestructive ? .destructive : .standard),
+                    DialogAction(title: alert.dismissTitle, role: .cancel)
+                ],
+                defaultIndex: 0, cancelIndex: 1,
+                accessory: offersRemember
+                    ? .content(AnyView(ExtensionRememberChoiceToggle(state: remember))) : nil)
+            let confirmed = await core.ask(request) == 0
+            return (confirmed, remember.isOn)
+        }
+    }
+
+    /// An untinted catalog symbol draws as the dialog's own glyph, so tone still tints it.
+    private func dialogIcon(for alert: ExtensionAlert, assetsPath: String?) -> DialogIcon {
+        let fallback = alert.isDestructive ? "exclamationmark.triangle" : "questionmark.circle"
+        guard let icon = alert.icon,
+            let resolved = ExtensionImage.resolve(
+                icon, assetsPath: assetsPath, isDark: NSApp.effectiveAppearance.isDark)
+        else { return .symbol(fallback) }
+        if case .symbol(let name) = resolved.source, resolved.tint == nil { return .symbol(name) }
+        return .artwork(AnyView(ExtensionAlertIcon(icon: icon, assetsPath: assetsPath)))
     }
 }

@@ -26,6 +26,13 @@ built-in variants. Older names still used by published extensions also work.
 `openExtensionPreferences`, `OAuth`, `useNavigation`, `Icon`, `Color`, `Image.Mask`,
 `Keyboard.Shortcut.Common`, `LaunchType`.
 
+**Confirmation dialogs.** `confirmAlert` shows the extension's `icon` and honours
+`rememberUserChoice`. Tick **Do not show this message again** and that command gets the same answer
+without asking next time, including when it refreshes in the background. A background refresh
+never shows the dialog, so without a remembered answer it gets "no". Remembered answers belong to
+one command. To be asked again, open the command's row in Settings → Extensions and click
+**Reset Confirmation Dialogs**.
+
 **Sign-in with OAuth.** Extensions like GitHub sign you in through your browser, and the palette
 comes back when you finish. Sign in from one of the extension's commands first: a background
 refresh or menu bar item can't start a sign-in on its own.

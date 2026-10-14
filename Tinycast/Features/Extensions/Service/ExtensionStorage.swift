@@ -11,9 +11,11 @@ final class ExtensionStorage {
         var accessoryValues: [String: String] = [:]
         /// Each OAuth provider's token set, as the JSON the runtime wrote.
         var oauthTokens: [String: String] = [:]
+        /// Command name, then `ExtensionAlertKey.identity`: answers the alert no longer asks for.
+        var alertAnswers: [String: [String: Bool]] = [:]
 
         enum CodingKeys: String, CodingKey {
-            case localStorage, caches, preferences, accessoryValues, oauthTokens
+            case localStorage, caches, preferences, accessoryValues, oauthTokens, alertAnswers
         }
 
         init() {}
@@ -32,6 +34,9 @@ final class ExtensionStorage {
                 try store.decodeIfPresent([String: String].self, forKey: .accessoryValues) ?? [:]
             oauthTokens =
                 try store.decodeIfPresent([String: String].self, forKey: .oauthTokens) ?? [:]
+            alertAnswers =
+                try store.decodeIfPresent(
+                    [String: [String: Bool]].self, forKey: .alertAnswers) ?? [:]
         }
     }
 
@@ -117,6 +122,27 @@ final class ExtensionStorage {
 
     func setAccessoryValue(extension name: String, key: String, value: String) {
         mutate(name) { $0.accessoryValues[key] = value }
+    }
+
+    // MARK: - Remembered alert answers
+
+    func rememberedAnswer(for key: ExtensionAlertKey) -> Bool? {
+        store(for: key.command.extensionName).alertAnswers[key.command.commandName]?[key.identity]
+    }
+
+    func remember(_ confirmed: Bool, for key: ExtensionAlertKey) {
+        mutate(key.command.extensionName) {
+            $0.alertAnswers[key.command.commandName, default: [:]][key.identity] = confirmed
+        }
+    }
+
+    func hasRememberedAnswers(for command: ExtensionCommandRef) -> Bool {
+        store(for: command.extensionName).alertAnswers[command.commandName]?.isEmpty == false
+    }
+
+    func forgetRememberedAnswers(for command: ExtensionCommandRef) {
+        guard hasRememberedAnswers(for: command) else { return }
+        mutate(command.extensionName) { $0.alertAnswers.removeValue(forKey: command.commandName) }
     }
 
     // MARK: - Cache

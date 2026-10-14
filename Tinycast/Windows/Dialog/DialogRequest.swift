@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 /// One button; role decides its colour, severity living separately in `DialogTone`.
 struct DialogAction {
@@ -19,11 +19,17 @@ enum DialogTone: Sendable {
     case danger
 }
 
+/// The subject's own glyph, or its own artwork drawn as handed over; tone tints only a symbol.
+enum DialogIcon {
+    case symbol(String)
+    case artwork(AnyView)
+}
+
 struct DialogRequest {
     let title: String
     var message: String?
     /// Nil where the title already names the subject and a glyph would repeat it.
-    let symbol: String?
+    let icon: DialogIcon?
     var tone: DialogTone = .neutral
     var actions: [DialogAction]
     /// The button ↵ fires, normally the primary action.
@@ -38,6 +44,8 @@ struct DialogRequest {
 enum DialogAccessory {
     case volume(VolumeState)
     case snippetArguments(SnippetArgumentsState)
+    /// A caller's own compact control; it claims no arrow keys and keeps its state with the caller.
+    case content(AnyView)
 
     /// Whether ←/→/↑/↓ belong to the control rather than to whatever has focus inside it.
     var claimsArrowKeys: Bool {

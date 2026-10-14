@@ -41,6 +41,7 @@ struct ExtensionSearchAccessoryTests {
         pickerChosen()
         searchBarAccessories()
         storageIsolation()
+        alertMemory()
         print(failures == 0 ? "\nALL PASSED" : "\n\(failures) FAILED")
         print("\(passes) passed, \(failures) failed")
         exit(failures == 0 ? 0 : 1)
@@ -317,6 +318,7 @@ struct ExtensionSearchAccessoryTests {
             .flatMap({ try? JSONSerialization.jsonObject(with: $0) as? [String: Any] })
         {
             older.removeValue(forKey: "accessoryValues")
+            older.removeValue(forKey: "alertAnswers")
             if let data = try? JSONSerialization.data(withJSONObject: older) {
                 try? data.write(to: file)
             }
@@ -328,6 +330,106 @@ struct ExtensionSearchAccessoryTests {
         check(
             "a store with no accessory section keeps its preferences",
             older.preference(extension: "older", key: "token") == .string("secret"))
+        check(
+            "a store with no alert answers remembers none",
+            !older.hasRememberedAnswers(
+                for: ExtensionCommandRef(extensionName: "older", commandName: "manage")))
+    }
+
+    static func alert(_ json: String) -> ExtensionAlert {
+        let object = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any]
+        return ExtensionAlert(payload: (object ?? [:]).mapValues(RenderValue.init(json:)))
+    }
+
+    static func alertMemory() {
+        let asked = alert(
+            """
+            {"title":"Delete project?","icon":"trash-16","rememberUserChoice":true,
+             "primaryAction":{"title":"Delete","style":"destructive"}}
+            """)
+        check(
+            "an alert reads its wording, style and icon",
+            [asked.title, asked.message ?? "nil", asked.primaryTitle, asked.dismissTitle]
+                == ["Delete project?", "nil", "Delete", "Cancel"]
+                && asked.isDestructive && asked.icon == .string("trash-16") && asked.remembersChoice)
+        let bare = alert("{}")
+        check(
+            "a bare alert asks Raycast's defaults and remembers nothing",
+            bare.title == "Are you sure?" && !bare.remembersChoice && bare.icon == nil)
+
+        let manage = ExtensionCommandRef(extensionName: "sample", commandName: "manage")
+        let other = ExtensionCommandRef(extensionName: "sample", commandName: "other")
+        check(
+            "an alert that never offered the checkbox has no key",
+            bare.rememberKey(command: manage) == nil)
+        guard let key = asked.rememberKey(command: manage) else {
+            check("a remembering alert mints a key", false)
+            return
+        }
+        check(
+            "the key is the wording as sorted JSON, an absent message left out",
+            key.identity
+                == #"{"dismissTitle":"Cancel","primaryTitle":"Delete","title":"Delete project?"}"#,
+            key.identity)
+        let empty = alert(
+            #"{"title":"Delete project?","message":"","rememberUserChoice":true,"#
+                + #""primaryAction":{"title":"Delete"}}"#)
+        check(
+            "an empty message is part of the key",
+            empty.rememberKey(command: manage)?.identity
+                == #"{"dismissTitle":"Cancel","message":"","primaryTitle":"Delete","#
+                + #""title":"Delete project?"}"#)
+
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tinycast-ext-alert-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storage = ExtensionStorage(directory: directory)
+        storage.setLocalStorage(extension: "sample", key: "kept", value: .string("value"))
+        check("nothing is remembered at first", storage.rememberedAnswer(for: key) == nil)
+        storage.remember(true, for: key)
+        check("a remembered Delete reads back", storage.rememberedAnswer(for: key) == true)
+        storage.remember(false, for: key)
+        check("a later answer replaces it", storage.rememberedAnswer(for: key) == false)
+        storage.flush()
+        check(
+            "a remembered answer survives a reload",
+            ExtensionStorage(directory: directory).rememberedAnswer(for: key) == false)
+
+        let lookalikes = [
+            alert(
+                #"{"title":"Delete project?","message":"Other","rememberUserChoice":true,"#
+                    + #""primaryAction":{"title":"Delete"}}"#
+            ).rememberKey(command: manage),
+            asked.rememberKey(command: other),
+            empty.rememberKey(command: manage)
+        ]
+        check(
+            "another message, another command, or an empty message is another alert",
+            lookalikes.map { $0.flatMap(storage.rememberedAnswer(for:)) } == [nil, nil, nil]
+                && lookalikes.allSatisfy { $0 != nil })
+        let joined = [
+            alert(#"{"title":"a|b","message":"c","rememberUserChoice":true}"#),
+            alert(#"{"title":"a","message":"b|c","rememberUserChoice":true}"#)
+        ].compactMap { $0.rememberKey(command: manage) }
+        if let first = joined.first { storage.remember(true, for: first) }
+        check(
+            "no title and message can join into another alert's key",
+            joined.count == 2 && storage.rememberedAnswer(for: joined[1]) == nil)
+
+        guard let otherKey = asked.rememberKey(command: other) else { return }
+        storage.remember(true, for: otherKey)
+        check("answers mark their command", storage.hasRememberedAnswers(for: manage))
+        storage.forgetRememberedAnswers(for: manage)
+        storage.forgetRememberedAnswers(for: manage)
+        storage.flush()
+        let reset = ExtensionStorage(directory: directory)
+        check(
+            "a reset forgets that command's answers, twice over",
+            !reset.hasRememberedAnswers(for: manage) && reset.rememberedAnswer(for: key) == nil)
+        check(
+            "a reset leaves other commands and localStorage alone",
+            reset.rememberedAnswer(for: otherKey) == true
+                && reset.localStorageValue(extension: "sample", key: "kept") == .string("value"))
     }
 
     static func check(_ label: String, _ condition: Bool, _ detail: String = "") {

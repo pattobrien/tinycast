@@ -613,6 +613,10 @@ run ext-image-size-test   $E/Model/ExtensionImageSize.swift
 run ext-accessory-test     $E/Model/RenderNode.swift \
                            $E/Model/ExtensionPickerItem.swift \
                            $E/Model/ExtensionSearchAccessory.swift \
+                           $E/Model/ExtensionCommandRef.swift \
+                           $E/Model/ExtensionAlert.swift \
+                           $E/Model/ExtensionLaunchType.swift \
+                           $E/Service/ExtensionAlertMemory.swift \
                            $E/Model/ExtensionSearchContract.swift \
                            $L/SearchRelevance.swift \
                            $E/Service/ExtensionStorage.swift
@@ -622,6 +626,9 @@ run slow ext-test          -parse-as-library \
                            $E/Model/ExtensionLaunchError.swift \
                            $E/Model/ExtensionMenuBarSnapshot.swift \
                            $E/Service/ExtensionStorage.swift \
+                           $E/Model/ExtensionCommandRef.swift \
+                           $E/Model/ExtensionAlert.swift \
+                           $E/Service/ExtensionAlertMemory.swift \
                            $E/Service/ExtensionMenuBarManager.swift \
                            $E/Model/ExtensionCommandMetadata.swift \
                            $E/Service/ExtensionCommandMetadataStore.swift \
