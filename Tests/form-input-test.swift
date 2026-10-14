@@ -103,8 +103,8 @@ struct FormInputTests {
     }
 
     static func testCapAlignment() {
-        for scale: CGFloat in [1, 1.1, 1.2] {
-            let metrics = InterfaceMetrics(scale: scale)
+        for size in InterfaceSize.allCases {
+            let metrics = size.metrics
             let draft = Draft()
             draft.name = "H"
             let height = metrics.size.dialogButtonHeight
@@ -118,7 +118,7 @@ struct FormInputTests {
             let input = find(FormTextInput.InputView.self, in: hosting)!
             expect(
                 abs(restingInk.midY / pixelsPerPoint - height / 2) <= 0.5,
-                "capitals are vertically centered at scale \(scale)")
+                "capitals are vertically centered at \(size.rawValue)")
             window.makeFirstResponder(input)
             RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.01))
             guard let editor = input.currentEditor() as? NSTextView else {
@@ -129,14 +129,14 @@ struct FormInputTests {
             editor.setSelectedRange(NSRange(location: 1, length: 0))
             expect(
                 inkBounds(hosting) == restingInk,
-                "editing preserves the cap-height alignment at scale \(scale)")
+                "editing preserves the cap-height alignment at \(size.rawValue)")
             let swiftUI = NSHostingView(
                 rootView: Text("H").font(metrics.typography.rowTitle)
                     .foregroundStyle(.white).frame(width: 300, height: height))
             let other = Self.window(content: swiftUI, height: height)
             expect(
                 abs(inkBounds(swiftUI).midY - restingInk.midY) <= 1,
-                "native inputs align with SwiftUI picker text at scale \(scale)")
+                "native inputs align with SwiftUI picker text at \(size.rawValue)")
             other.close()
             window.close()
         }

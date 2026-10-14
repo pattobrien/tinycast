@@ -39,6 +39,7 @@ struct InterfaceSizeTests {
     static func theDefaultIsThemeVerbatim() {
         let m = InterfaceMetrics.standard
         expect(m.scale, 1, "the default scale is 1")
+        expect(m.textScale, 1, "the default text scale is 1")
 
         expect(m.spacing.xxs, Theme.Spacing.xxs, "spacing.xxs")
         expect(m.spacing.xs, Theme.Spacing.xs, "spacing.xs")
@@ -63,6 +64,7 @@ struct InterfaceSizeTests {
             m.spacing.chatFollowTailSlack, Theme.Spacing.chatFollowTailSlack,
             "spacing.chatFollowTailSlack")
         expect(m.spacing.chatLine, Theme.Spacing.chatLine, "spacing.chatLine")
+        expect(m.spacing.rowVertical, Theme.Spacing.rowVertical, "spacing.rowVertical")
 
         expect(m.radius.panel, Theme.Radius.panel, "radius.panel")
         expect(m.radius.row, Theme.Radius.row, "radius.row")
@@ -202,7 +204,7 @@ struct InterfaceSizeTests {
                 let base = NSFont.preferredFont(forTextStyle: style)
                 let scaled = NSFont(
                     descriptor: base.fontDescriptor,
-                    size: (base.pointSize * size.scale).rounded())
+                    size: (base.pointSize * metrics.textScale).rounded())
                 expect(scaled != nil, "\(style.rawValue) rebuilds from its own descriptor")
                 expect(
                     scaled?.familyName == base.familyName,
@@ -211,10 +213,16 @@ struct InterfaceSizeTests {
                     scaled?.fontName == base.fontName,
                     "\(style.rawValue) keeps its face at \(size.rawValue)")
             }
-            expect(
-                metrics.typography.searchFieldSize
-                    == (Theme.Typography.searchFieldSize * size.scale).rounded(),
-                "the search field's stated size scales at \(size.rawValue)")
+            if metrics.chrome == .scaled(metrics.scale) {
+                expect(
+                    metrics.typography.searchFieldSize
+                        == (Theme.Typography.searchFieldSize * metrics.scale).rounded(),
+                    "the search field's stated size scales at \(size.rawValue)")
+            } else {
+                expect(
+                    metrics.typography.searchFieldSize == metrics.chrome.searchFieldSize,
+                    "the search field's stated size is the table's at \(size.rawValue)")
+            }
         }
     }
 
@@ -245,7 +253,8 @@ struct InterfaceSizeTests {
             expect(
                 larger.metrics.size.panelWidth > smaller.metrics.size.panelWidth,
                 "the panel is wider at \(larger.rawValue)")
-            expect(smaller.scale < larger.scale, "\(larger.rawValue) scales further")
+            expect(
+                smaller.metrics.scale < larger.metrics.scale, "\(larger.rawValue) scales further")
         }
     }
 
@@ -260,12 +269,12 @@ struct InterfaceSizeTests {
                 m.size.menuRowHeight, m.size.menuIcon + m.spacing.md * 2,
                 "a menu row is its glyph slot plus breathing room at \(size.rawValue)")
             let dialogButtonReduction =
-                ((Theme.Size.menuButton - Theme.Size.dialogButtonHeight) * size.scale).rounded()
+                ((Theme.Size.menuButton - Theme.Size.dialogButtonHeight) * m.scale).rounded()
             expect(
                 m.size.dialogButtonHeight, m.size.menuButton - dialogButtonReduction,
                 "a dialog button stays the scaled reduction below a menu button at \(size.rawValue)")
 
-            let form = ExtensionFormMetrics(scale: size.scale)
+            let form = ExtensionFormMetrics(scale: m.scale)
             expect(
                 form.popoverRowsMaxHeight
                     == (form.popoverVisibleRows * (form.popoverRowHeight + form.popoverRowSpacing))
@@ -275,7 +284,7 @@ struct InterfaceSizeTests {
     }
 
     static func theEnumIsWellFormed() {
-        expect(InterfaceSize.standard.scale == 1, "the default size changes nothing")
+        expect(InterfaceSize.standard.metrics == .standard, "the default size changes nothing")
         expect(InterfaceSize(rawValue: "huge") == nil, "an unknown raw value is rejected")
         expect(
             InterfaceSize.allCases.count == Set(InterfaceSize.allCases.map(\.title)).count,
@@ -296,6 +305,7 @@ struct InterfaceSizeTests {
             ("spacing.chatTranscriptBottom", m.spacing.chatTranscriptBottom),
             ("spacing.chatFollowTailSlack", m.spacing.chatFollowTailSlack),
             ("spacing.chatLine", m.spacing.chatLine),
+            ("spacing.rowVertical", m.spacing.rowVertical),
             ("radius.panel", m.radius.panel), ("radius.row", m.radius.row),
             ("radius.formField", m.radius.formField),
             ("radius.emojiCell", m.radius.emojiCell), ("radius.menu", m.radius.menu),

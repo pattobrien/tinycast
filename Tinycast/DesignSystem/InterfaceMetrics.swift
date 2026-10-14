@@ -5,17 +5,62 @@ struct InterfaceMetrics: Equatable, Sendable {
     static let standard = InterfaceMetrics(scale: 1)
 
     let scale: CGFloat
+    let textScale: CGFloat
+    let chrome: Chrome
 
-    var spacing: Spacing { Spacing(scale: scale) }
-    var radius: Radius { Radius(scale: scale) }
-    var size: Size { Size(scale: scale) }
-    var typography: Typography { Typography(scale: scale) }
+    var spacing: Spacing { Spacing(scale: scale, chrome: chrome) }
+    var radius: Radius { Radius(scale: scale, chrome: chrome) }
+    var size: Size { Size(scale: scale, chrome: chrome) }
+    var typography: Typography { Typography(textScale: textScale, chrome: chrome) }
 
     /// For a tuned length a surface owns itself, where `Theme` states no token for it.
     func scaled(_ value: CGFloat) -> CGFloat { scaledPoints(value, scale) }
 
+    struct Chrome: Equatable, Sendable {
+        let searchFieldSize: CGFloat
+        let headerIconSize: CGFloat
+        let headerHeight: CGFloat
+        let headerPadding: CGFloat
+        let headerIconSlot: CGFloat
+        let resultRowIcon: CGFloat
+        let rowIcon: CGFloat
+        let rowVertical: CGFloat
+        let rowRadius: CGFloat
+        let panelRadius: CGFloat
+        let bottomBarHeight: CGFloat
+
+        static func scaled(_ scale: CGFloat) -> Chrome {
+            Chrome(
+                searchFieldSize: scaledPoints(Theme.Typography.searchFieldSize, scale),
+                headerIconSize: scaledPoints(Theme.Typography.headerIconSize, scale),
+                headerHeight: scaledPoints(Theme.Size.headerHeight, scale),
+                headerPadding: scaledPoints(Theme.Size.headerPadding, scale),
+                headerIconSlot: scaledPoints(Theme.Size.headerIconSlot, scale),
+                resultRowIcon: scaledPoints(Theme.Size.resultRowIcon, scale),
+                rowIcon: scaledPoints(Theme.Size.rowIcon, scale),
+                rowVertical: scaledPoints(Theme.Spacing.rowVertical, scale),
+                rowRadius: scaledPoints(Theme.Radius.row, scale),
+                panelRadius: scaledPoints(Theme.Radius.panel, scale),
+                bottomBarHeight: scaledPoints(Theme.Size.bottomBarHeight, scale))
+        }
+
+        static let micro = Chrome(
+            searchFieldSize: Theme.Micro.searchFieldSize,
+            headerIconSize: Theme.Micro.headerIconSize,
+            headerHeight: Theme.Micro.headerHeight,
+            headerPadding: Theme.Micro.headerPadding,
+            headerIconSlot: Theme.Micro.headerIconSlot,
+            resultRowIcon: Theme.Micro.resultRowIcon,
+            rowIcon: Theme.Micro.rowIcon,
+            rowVertical: Theme.Micro.rowVertical,
+            rowRadius: Theme.Micro.rowRadius,
+            panelRadius: Theme.Micro.panelRadius,
+            bottomBarHeight: Theme.Micro.bottomBarHeight)
+    }
+
     struct Spacing: Equatable, Sendable {
         let scale: CGFloat
+        let chrome: Chrome
 
         var xxs: CGFloat { scaledPoints(Theme.Spacing.xxs, scale) }
         var xs: CGFloat { scaledPoints(Theme.Spacing.xs, scale) }
@@ -29,6 +74,7 @@ struct InterfaceMetrics: Equatable, Sendable {
         var sectionHeaderBottom: CGFloat { scaledPoints(Theme.Spacing.sectionHeaderBottom, scale) }
         var sectionSpacing: CGFloat { scaledPoints(Theme.Spacing.sectionSpacing, scale) }
         var emojiSectionSpacing: CGFloat { scaledPoints(Theme.Spacing.emojiSectionSpacing, scale) }
+        var rowVertical: CGFloat { chrome.rowVertical }
         var chatTranscriptBottom: CGFloat { scaledPoints(Theme.Spacing.chatTranscriptBottom, scale) }
         var chatFollowTailSlack: CGFloat { scaledPoints(Theme.Spacing.chatFollowTailSlack, scale) }
         var chatLine: CGFloat { scaledPoints(Theme.Spacing.chatLine, scale) }
@@ -36,9 +82,10 @@ struct InterfaceMetrics: Equatable, Sendable {
 
     struct Radius: Equatable, Sendable {
         let scale: CGFloat
+        let chrome: Chrome
 
-        var panel: CGFloat { scaledPoints(Theme.Radius.panel, scale) }
-        var row: CGFloat { scaledPoints(Theme.Radius.row, scale) }
+        var panel: CGFloat { chrome.panelRadius }
+        var row: CGFloat { chrome.rowRadius }
         var formField: CGFloat { scaledPoints(Theme.Radius.formField, scale) }
         var emojiCell: CGFloat { scaledPoints(Theme.Radius.emojiCell, scale) }
         var menu: CGFloat { scaledPoints(Theme.Radius.menu, scale) }
@@ -58,19 +105,20 @@ struct InterfaceMetrics: Equatable, Sendable {
 
     struct Size: Equatable, Sendable {
         let scale: CGFloat
+        let chrome: Chrome
 
         var panelWidth: CGFloat { scaledPoints(Theme.Size.panelWidth, scale) }
         var panelHeight: CGFloat { scaledPoints(Theme.Size.panelHeight, scale) }
-        var headerHeight: CGFloat { scaledPoints(Theme.Size.headerHeight, scale) }
-        var headerIconSlot: CGFloat { scaledPoints(Theme.Size.headerIconSlot, scale) }
+        var headerHeight: CGFloat { chrome.headerHeight }
+        var headerIconSlot: CGFloat { chrome.headerIconSlot }
         var searchFieldMinWidth: CGFloat { scaledPoints(Theme.Size.searchFieldMinWidth, scale) }
-        var headerPadding: CGFloat { scaledPoints(Theme.Size.headerPadding, scale) }
+        var headerPadding: CGFloat { chrome.headerPadding }
         /// Derived, not scaled: the compact bar must stay exactly the header in symmetric slack.
         var compactHeight: CGFloat { headerHeight + headerPadding * 2 }
-        var bottomBarHeight: CGFloat { scaledPoints(Theme.Size.bottomBarHeight, scale) }
+        var bottomBarHeight: CGFloat { chrome.bottomBarHeight }
         var barButtonHeight: CGFloat { scaledPoints(Theme.Size.barButtonHeight, scale) }
-        var rowIcon: CGFloat { scaledPoints(Theme.Size.rowIcon, scale) }
-        var resultRowIcon: CGFloat { scaledPoints(Theme.Size.resultRowIcon, scale) }
+        var rowIcon: CGFloat { chrome.rowIcon }
+        var resultRowIcon: CGFloat { chrome.resultRowIcon }
         var colorDot: CGFloat { scaledPoints(Theme.Size.colorDot, scale) }
         var calendarBarWidth: CGFloat { scaledPoints(Theme.Size.calendarBarWidth, scale) }
         var calendarBarHeight: CGFloat { scaledPoints(Theme.Size.calendarBarHeight, scale) }
@@ -94,7 +142,7 @@ struct InterfaceMetrics: Equatable, Sendable {
         var menuRowSpacing: CGFloat { scaledPoints(Theme.Size.menuRowSpacing, scale) }
         var menuSectionHeader: CGFloat { scaledPoints(Theme.Size.menuSectionHeader, scale) }
         /// Derived like `Theme`'s, so the row cap still counts whole rows at every size.
-        var menuRowHeight: CGFloat { menuIcon + Spacing(scale: scale).md * 2 }
+        var menuRowHeight: CGFloat { menuIcon + Spacing(scale: scale, chrome: chrome).md * 2 }
         var menuRowsMaxHeight: CGFloat {
             (Theme.Size.menuVisibleRows * (menuRowHeight + menuRowSpacing)).rounded()
         }
@@ -141,24 +189,25 @@ struct InterfaceMetrics: Equatable, Sendable {
 
     /// `NSFont` is the only public source of a text style's size and face.
     struct Typography: Sendable {
-        let scale: CGFloat
+        let textScale: CGFloat
+        let chrome: Chrome
 
-        var searchFieldSize: CGFloat { scaledPoints(Theme.Typography.searchFieldSize, scale) }
+        var searchFieldSize: CGFloat { chrome.searchFieldSize }
         var searchField: Font {
-            scale == 1
+            searchFieldSize == Theme.Typography.searchFieldSize
                 ? Theme.Typography.searchField
                 : .system(size: searchFieldSize, weight: .regular)
         }
         /// Isolated because `Theme`'s twin is, not because resolving a font needs main.
         @MainActor var searchFieldNSFont: NSFont {
-            scale == 1
+            searchFieldSize == Theme.Typography.searchFieldSize
                 ? Theme.Typography.searchFieldNSFont
                 : NSFont.systemFont(ofSize: searchFieldSize, weight: .regular)
         }
         var headerIcon: Font {
-            scale == 1
+            chrome.headerIconSize == Theme.Typography.headerIconSize
                 ? Theme.Typography.headerIcon
-                : .system(size: scaledPoints(18, scale), weight: .medium)
+                : .system(size: chrome.headerIconSize, weight: .medium)
         }
 
         var rowTitle: Font { font(Theme.Typography.rowTitle, .body) }
@@ -173,14 +222,14 @@ struct InterfaceMetrics: Equatable, Sendable {
         var markdownHeading2: Font { font(Theme.Typography.markdownHeading2, .title3, .semibold) }
         var markdownHeading3: Font { font(Theme.Typography.markdownHeading3, .headline) }
         var code: Font {
-            scale == 1
+            textScale == 1
                 ? Theme.Typography.code
                 : .system(size: nsFont(.callout).pointSize, design: .monospaced)
         }
         var inlineCode: Font { font(Theme.Typography.inlineCode, .body).monospaced() }
         var bar: Font { font(Theme.Typography.bar, .callout, .medium) }
         var chip: Font { font(Theme.Typography.chip, .callout) }
-        @MainActor var chipNSFont: NSFont { scale == 1 ? Theme.Typography.chipNSFont : nsFont(.callout) }
+        @MainActor var chipNSFont: NSFont { textScale == 1 ? Theme.Typography.chipNSFont : nsFont(.callout) }
         var disclosure: Font { font(Theme.Typography.disclosure, .caption1, .semibold) }
         var menuRow: Font { font(Theme.Typography.menuRow, .body) }
         var menuShortcut: Font { font(Theme.Typography.menuShortcut, .callout) }
@@ -202,7 +251,7 @@ struct InterfaceMetrics: Equatable, Sendable {
         )
             -> Font
         {
-            guard scale != 1 else { return base }
+            guard textScale != 1 else { return base }
             let scaled = Font(nsFont(style))
             return weight.map(scaled.weight) ?? scaled
         }
@@ -210,9 +259,15 @@ struct InterfaceMetrics: Equatable, Sendable {
         /// Its own descriptor, so `.headline` stays Bold and `.caption2` Medium, not lighter.
         private func nsFont(_ style: NSFont.TextStyle) -> NSFont {
             let base = NSFont.preferredFont(forTextStyle: style)
-            guard scale != 1 else { return base }
-            return NSFont(descriptor: base.fontDescriptor, size: scaledPoints(base.pointSize, scale)) ?? base
+            guard textScale != 1 else { return base }
+            return NSFont(descriptor: base.fontDescriptor, size: scaledPoints(base.pointSize, textScale)) ?? base
         }
+    }
+}
+
+extension InterfaceMetrics {
+    init(scale: CGFloat) {
+        self.init(scale: scale, textScale: scale, chrome: .scaled(scale))
     }
 }
 

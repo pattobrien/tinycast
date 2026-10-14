@@ -16,13 +16,11 @@ enum InterfaceSize: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var scale: CGFloat {
+    var metrics: InterfaceMetrics {
         switch self {
-        case .standard: 1
-        case .large: 1.1
-        case .larger: 1.2
+        case .standard: .standard
+        case .large: InterfaceMetrics(scale: 1.1)
+        case .larger: InterfaceMetrics(scale: 1.2)
         }
     }
-
-    var metrics: InterfaceMetrics { InterfaceMetrics(scale: scale) }
 }

@@ -26,6 +26,22 @@ enum Theme {
         static let sectionSpacing: CGFloat = 12
         /// Emoji tiles need a little more separation so adjacent category grids stay distinct.
         static let emojiSectionSpacing: CGFloat = 14
+        static let rowVertical: CGFloat = 6
+    }
+
+    enum Micro {
+        static let scale: CGFloat = 0.8
+        static let searchFieldSize: CGFloat = 13
+        static let headerIconSize: CGFloat = 13
+        static let headerHeight: CGFloat = 28
+        static let headerPadding: CGFloat = 6
+        static let headerIconSlot: CGFloat = 16
+        static let resultRowIcon: CGFloat = 16
+        static let rowIcon: CGFloat = 16
+        static let rowVertical: CGFloat = 3
+        static let rowRadius: CGFloat = 3
+        static let panelRadius: CGFloat = 12
+        static let bottomBarHeight: CGFloat = 32
     }
 
     enum Radius {
@@ -358,7 +374,8 @@ enum Theme {
         /// `NSFont` is not `Sendable`, hence the isolation; every reader is a view anyway.
         @MainActor static let searchFieldNSFont = NSFont.systemFont(
             ofSize: searchFieldSize, weight: .regular)
-        static let headerIcon = Font.system(size: 18, weight: .medium)
+        static let headerIconSize: CGFloat = 18
+        static let headerIcon = Font.system(size: headerIconSize, weight: .medium)
         static let rowTitle = Font.body
         static let rowTrailing = Font.callout
         static let sectionHeader = Font.subheadline.weight(.medium)
