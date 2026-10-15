@@ -21,7 +21,6 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-      issues: write
       pull-requests: write
     steps:
       - uses: actions/checkout@v7
@@ -61,4 +60,4 @@ jobs:
           SHA: ${{ github.event.pull_request.head.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          gh pr comment "$PR" --edit-last --create-if-none --body "Preview build \`Tinycast-${VERSION}\` for ${SHA:0:8} is attached to [this run](${RUN_URL}#artifacts). Install it the way FORK.md describes; it replaces the installed Tinycast and keeps its grants."
+          gh pr comment "$PR" -R "$GITHUB_REPOSITORY" --edit-last --create-if-none --body "Preview build \`Tinycast-${VERSION}\` for ${SHA:0:8} is attached to [this run](${RUN_URL}#artifacts). Install it the way FORK.md describes; it replaces the installed Tinycast and keeps its grants."
