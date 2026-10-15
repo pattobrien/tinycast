@@ -60,9 +60,9 @@ and that is the tag an agent machine attaches with
 the canonical source path, so the job clones the checkout to `/Volumes/devbox/dev/pattobrien/tinycast`
 and builds there, the real path behind `~/dev/pattobrien/tinycast` on an agent machine. A build from
 any other directory reuses only the SDK module tasks. An agent machine that is destroyed writes its
-own generation back to the tag, and the next preview run refreshes it. A machine created within a
-few minutes of a commit to the tag can fork an empty volume while the new generation is still
-spreading (observed at 3 minutes, not at 5); its first build is then cold.
+own generation back to the tag, and the next preview run refreshes it. The cache volume has to be
+the machine's only volume: an instance that attaches a second volume of any kind forks an empty
+cache volume (measured with two instances created in the same second).
 
 ## Previews
 
