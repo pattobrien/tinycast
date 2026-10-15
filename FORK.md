@@ -21,8 +21,9 @@ Current upstream base: `v0.11.21-beta.120`.
 - `AppVersion` parses a `-fork.N` suffix and orders a fork build just above the upstream version it
   was cut from. Required for every fork version; without it the app cannot read its own version and
   never checks for updates. No upstream PR.
-- The fork release workflow `.github/workflows/release-fork.yml`, `Scripts/fork-release.ts`, and
-  this file.
+- The fork release workflow `.github/workflows/release-fork.yml`, the preview workflow
+  `.github/workflows/build.yml`, the shared build action `.github/actions/build-app`,
+  `Scripts/fork-release.ts`, and this file.
 
 Remove an item from this list once upstream ships an equivalent and a sync brings it in.
 
@@ -42,6 +43,24 @@ upstream's stable channel, so it replaces an installed copy and keeps its data a
 The workflow fails unless the newest upstream tag reachable from the tagged commit equals the
 `<upstream>` part of the tag. It publishes the release marked as latest, with generated notes since
 the previous fork tag. Upstream's `release.yml` is dispatch-only, so a fork tag never starts it.
+
+## Runners and the build cache
+
+Both workflows run on the Namespace runner profile `mac`, a 6 CPU Apple silicon machine on the
+`goldengate` image (macOS 27 with Xcode 26.6), and build through `.github/actions/build-app`. The
+action mounts the Namespace cache volume tagged `tinycast-xcode` and turns on the Xcode 26
+compilation cache, so a build after the first one compiles only what changed since the cache was
+last written. The build log prints the hit and miss counts. The same tag can be attached to any
+Namespace macOS instance with `nsc create --volume cache:tinycast-xcode:/Volumes/cache:50GB`, which
+is how an agent machine starts with the compiler cache CI already filled.
+
+## Previews
+
+Every pull request from this repository gets a `Build` run that produces the same signed app the
+release would, versioned as the next fork build, and uploads `Tinycast-<version>.dmg` and `.zip` as
+a run artifact. The run comments on the pull request with a link to the artifact. Install it the
+same way as a release; it replaces the installed Tinycast and keeps its grants. Pull requests from
+other forks skip the run, because they cannot read the signing secrets.
 
 ## Cutting a release
 

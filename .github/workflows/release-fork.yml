@@ -22,7 +22,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-26
+    runs-on: namespace-profile-mac;overrides.cache-tag=tinycast-xcode
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
@@ -50,17 +51,6 @@ jobs:
           ref: refs/tags/${{ steps.meta.outputs.tag }}
           fetch-depth: 0
 
-      - name: Select Xcode 26
-        run: |
-          XCODE_PATH="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n1)"
-          if [ -z "$XCODE_PATH" ]; then
-            echo "::error::No Xcode 26.x found on this runner. Installed Xcodes:"
-            ls /Applications | grep -i xcode || true
-            exit 1
-          fi
-          echo "Using $XCODE_PATH"
-          echo "DEVELOPER_DIR=$XCODE_PATH/Contents/Developer" >> "$GITHUB_ENV"
-
       - name: Verify the tag names its upstream base
         env:
           UPSTREAM: ${{ steps.meta.outputs.upstream }}
@@ -73,67 +63,12 @@ jobs:
             exit 1
           fi
 
-      - name: Import signing certificate
-        env:
-          P12_BASE64: ${{ secrets.SIGNING_P12_BASE64 }}
-          P12_PASSWORD: ${{ secrets.SIGNING_P12_PASSWORD }}
-        run: |
-          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
-          KPW="$(openssl rand -base64 24)"
-          echo "${P12_BASE64}" | base64 --decode > "$RUNNER_TEMP/cert.p12"
-          security create-keychain -p "$KPW" "$KEYCHAIN"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN"
-          security unlock-keychain -p "$KPW" "$KEYCHAIN"
-          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "${P12_PASSWORD}" -A -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$KPW" "$KEYCHAIN" >/dev/null
-          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | sed 's/"//g')
-          rm -f "$RUNNER_TEMP/cert.p12"
-
-      - name: Build app
-        env:
-          VERSION: ${{ steps.meta.outputs.version }}
-          BUILD_NUMBER: ${{ github.run_number }}
-        run: |
-          xcodebuild -project Tinycast.xcodeproj -scheme Tinycast -configuration Release \
-            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
-            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
-            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Tinycast Self-Signed" \
-            OTHER_CODE_SIGN_FLAGS="--timestamp=none" \
-            PRODUCT_NAME="Tinycast" TINYCAST_BUNDLE_IDENTIFIER="com.tinycast.app" \
-            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
-            build
-
-      - name: Assert the build is arm64-only
-        run: |
-          APP="$RUNNER_TEMP/DerivedData/Build/Products/Release/Tinycast.app"
-          for BIN in "$APP/Contents/MacOS/Tinycast" "$APP/Contents/Helpers/ClipboardTextHelper" "$APP/Contents/Helpers/Tinycast Dictation.app/Contents/MacOS/Tinycast Dictation"; do
-            SLICES="$(lipo -archs "$BIN")"
-            if [ "$SLICES" != "arm64" ]; then
-              echo "::error::${BIN##*/}: expected arm64 alone, got '$SLICES'"
-              exit 1
-            fi
-          done
-
-      - name: Assert the signature is notarizable
-        run: ./Scripts/verify-signature.sh "$RUNNER_TEMP/DerivedData/Build/Products/Release/Tinycast.app"
-
-      - name: Package DMG and ZIP
-        env:
-          DMG_FILE: ${{ steps.meta.outputs.dmg_file }}
-          ZIP_FILE: ${{ steps.meta.outputs.zip_file }}
-        run: |
-          APP="$RUNNER_TEMP/DerivedData/Build/Products/Release/Tinycast.app"
-          STAGE="$(mktemp -d)"
-          cp -R "$APP" "$STAGE/"
-          ln -s /Applications "$STAGE/Applications"
-          mkdir -p dist
-          diskutil image create from "$STAGE" --format UDZO --volumeName "Tinycast" "dist/${DMG_FILE}"
-          ditto -c -k --keepParent --sequesterRsrc "$APP" "dist/${ZIP_FILE}"
-
-      - uses: actions/upload-artifact@v7
+      - uses: ./.github/actions/build-app
         with:
-          name: Tinycast-${{ steps.meta.outputs.version }}
-          path: dist/
+          version: ${{ steps.meta.outputs.version }}
+          build-number: ${{ github.run_number }}
+          signing-p12-base64: ${{ secrets.SIGNING_P12_BASE64 }}
+          signing-p12-password: ${{ secrets.SIGNING_P12_PASSWORD }}
 
       - name: Compose release notes
         env:

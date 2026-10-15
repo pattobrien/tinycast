@@ -1,0 +1,124 @@
+name: Build Tinycast
+description: Build, sign, verify and package Tinycast.app with the Xcode compilation cache on a Namespace cache volume.
+
+inputs:
+  version:
+    description: The marketing version, e.g. 0.11.21-beta.120-fork.2
+    required: true
+  build-number:
+    description: The build number, usually the run number
+    required: true
+  signing-p12-base64:
+    description: The Tinycast Self-Signed identity as a base64 p12
+    required: true
+  signing-p12-password:
+    description: The p12 password
+    required: true
+
+outputs:
+  app:
+    description: Path of the built Tinycast.app
+    value: ${{ steps.build.outputs.app }}
+  dmg:
+    description: Path of the DMG under dist/
+    value: ${{ steps.package.outputs.dmg }}
+  zip:
+    description: Path of the ZIP under dist/
+    value: ${{ steps.package.outputs.zip }}
+
+runs:
+  using: composite
+  steps:
+    - uses: namespacelabs/nscloud-cache-action@v1
+      with:
+        cache: xcode
+
+    - name: Select Xcode 26
+      shell: bash
+      run: |
+        XCODE_PATH="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n1)"
+        if [ -z "$XCODE_PATH" ]; then
+          echo "::error::No Xcode 26.x found on this runner. Installed Xcodes:"
+          ls /Applications | grep -i xcode || true
+          exit 1
+        fi
+        echo "Using $XCODE_PATH"
+        echo "DEVELOPER_DIR=$XCODE_PATH/Contents/Developer" >> "$GITHUB_ENV"
+
+    - name: Import signing certificate
+      shell: bash
+      env:
+        P12_BASE64: ${{ inputs.signing-p12-base64 }}
+        P12_PASSWORD: ${{ inputs.signing-p12-password }}
+      run: |
+        KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+        KPW="$(openssl rand -base64 24)"
+        echo "${P12_BASE64}" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+        security create-keychain -p "$KPW" "$KEYCHAIN"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN"
+        security unlock-keychain -p "$KPW" "$KEYCHAIN"
+        security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "${P12_PASSWORD}" -A -T /usr/bin/codesign
+        security set-key-partition-list -S apple-tool:,apple: -s -k "$KPW" "$KEYCHAIN" >/dev/null
+        security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | sed 's/"//g')
+        rm -f "$RUNNER_TEMP/cert.p12"
+
+    - name: Build app
+      id: build
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        BUILD_NUMBER: ${{ inputs.build-number }}
+      run: |
+        LOG="$RUNNER_TEMP/xcodebuild.log"
+        xcodebuild -project Tinycast.xcodeproj -scheme Tinycast -configuration Release \
+          ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+          CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Tinycast Self-Signed" \
+          OTHER_CODE_SIGN_FLAGS="--timestamp=none" \
+          PRODUCT_NAME="Tinycast" TINYCAST_BUNDLE_IDENTIFIER="com.tinycast.app" \
+          MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+          build 2>&1 | tee "$LOG"
+        test "${PIPESTATUS[0]}" -eq 0
+        echo "compilation cache: $(grep -c 'Cache hit' "$LOG" || true) hits, $(grep -c 'Cache miss' "$LOG" || true) misses"
+        PRODUCTS="$(xcodebuild -project Tinycast.xcodeproj -scheme Tinycast -configuration Release -showBuildSettings \
+          | awk -F' = ' '/ BUILT_PRODUCTS_DIR = /{print $2; exit}')"
+        echo "app=$PRODUCTS/Tinycast.app" >> "$GITHUB_OUTPUT"
+
+    - name: Assert the build is arm64-only
+      shell: bash
+      env:
+        APP: ${{ steps.build.outputs.app }}
+      run: |
+        for BIN in "$APP/Contents/MacOS/Tinycast" "$APP/Contents/Helpers/ClipboardTextHelper" "$APP/Contents/Helpers/Tinycast Dictation.app/Contents/MacOS/Tinycast Dictation"; do
+          SLICES="$(lipo -archs "$BIN")"
+          if [ "$SLICES" != "arm64" ]; then
+            echo "::error::${BIN##*/}: expected arm64 alone, got '$SLICES'"
+            exit 1
+          fi
+        done
+
+    - name: Assert the signature is notarizable
+      shell: bash
+      run: ./Scripts/verify-signature.sh "${{ steps.build.outputs.app }}"
+
+    - name: Package DMG and ZIP
+      id: package
+      shell: bash
+      env:
+        APP: ${{ steps.build.outputs.app }}
+        VERSION: ${{ inputs.version }}
+      run: |
+        STAGE="$(mktemp -d)"
+        cp -R "$APP" "$STAGE/"
+        ln -s /Applications "$STAGE/Applications"
+        mkdir -p dist
+        diskutil image create from "$STAGE" --format UDZO --volumeName "Tinycast" "dist/Tinycast-${VERSION}.dmg"
+        ditto -c -k --keepParent --sequesterRsrc "$APP" "dist/Tinycast-${VERSION}.zip"
+        {
+          echo "dmg=dist/Tinycast-${VERSION}.dmg"
+          echo "zip=dist/Tinycast-${VERSION}.zip"
+        } >> "$GITHUB_OUTPUT"
+
+    - uses: actions/upload-artifact@v7
+      with:
+        name: Tinycast-${{ inputs.version }}
+        path: dist/

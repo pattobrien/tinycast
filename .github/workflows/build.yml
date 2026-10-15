@@ -1,0 +1,51 @@
+name: Build
+
+run-name: "Tinycast preview for #${{ github.event.pull_request.number }}"
+
+on:
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: build-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: namespace-profile-mac;overrides.cache-tag=tinycast-xcode
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the next fork version
+        id: meta
+        run: |
+          git remote add upstream https://github.com/abue-ammar/tinycast.git
+          echo "version=$(node Scripts/fork-release.ts --next-version)" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/build-app
+        with:
+          version: ${{ steps.meta.outputs.version }}
+          build-number: ${{ github.run_number }}
+          signing-p12-base64: ${{ secrets.SIGNING_P12_BASE64 }}
+          signing-p12-password: ${{ secrets.SIGNING_P12_PASSWORD }}
+
+      - name: Point the pull request at the build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh pr comment "$PR" --edit-last --create-if-none --body "Preview build \`Tinycast-${VERSION}\` for ${SHA:0:8} is attached to [this run](${RUN_URL}#artifacts). Install it the way FORK.md describes; it replaces the installed Tinycast and keeps its grants."
