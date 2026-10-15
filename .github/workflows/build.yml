@@ -21,6 +21,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
+      issues: write
       pull-requests: write
     steps:
       - uses: actions/checkout@v7
@@ -39,6 +40,18 @@ jobs:
           build-number: ${{ github.run_number }}
           signing-p12-base64: ${{ secrets.SIGNING_P12_BASE64 }}
           signing-p12-password: ${{ secrets.SIGNING_P12_PASSWORD }}
+
+      - name: Build Debug so the agent cache holds the dev build too
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          LOG="$RUNNER_TEMP/xcodebuild-debug.log"
+          xcodebuild -project Tinycast.xcodeproj -scheme Tinycast -configuration Debug \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            build 2>&1 | tee "$LOG"
+          test "${PIPESTATUS[0]}" -eq 0
+          echo "compilation cache: $(grep -c 'Cache hit' "$LOG" || true) hits, $(grep -c 'Cache miss' "$LOG" || true) misses"
 
       - name: Point the pull request at the build
         env:
