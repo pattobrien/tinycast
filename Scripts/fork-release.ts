@@ -18,10 +18,11 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-function parseArguments(argv: string[]): { dryRun: boolean } {
-  const unknown = argv.filter((argument) => argument !== "--dry-run");
-  if (unknown.length > 0) fail(`unknown argument ${unknown.join(" ")}; only --dry-run is accepted`);
-  return { dryRun: argv.includes("--dry-run") };
+function parseArguments(argv: string[]): { dryRun: boolean; nextVersion: boolean } {
+  const known = ["--dry-run", "--next-version"];
+  const unknown = argv.filter((argument) => !known.includes(argument));
+  if (unknown.length > 0) fail(`unknown argument ${unknown.join(" ")}; only ${known.join(" or ")} is accepted`);
+  return { dryRun: argv.includes("--dry-run"), nextVersion: argv.includes("--next-version") };
 }
 
 function remoteTagCommits(remote: string, pattern: string): Map<string, string> {
@@ -91,10 +92,16 @@ async function workflowRunURL(tag: string): Promise<string> {
   return fail(`${tag} was pushed but no ${workflow} run started for it within a minute`);
 }
 
-const { dryRun } = parseArguments(process.argv.slice(2));
-const head = assertReleasableCheckout();
+const { dryRun, nextVersion } = parseArguments(process.argv.slice(2));
+const head = nextVersion ? run("git", ["rev-parse", "HEAD"]) : assertReleasableCheckout();
 const upstream = newestUpstreamTag(head);
 const tag = `${upstream.name}-fork.${nextForkNumber(upstream.name)}`;
+
+if (nextVersion) {
+  console.log(tag.slice(1));
+  process.exit(0);
+}
+
 console.log(`upstream base: ${upstream.name} (${upstream.commit.slice(0, 8)})`);
 
 if (dryRun) {
