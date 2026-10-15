@@ -56,10 +56,13 @@ A cache tag keeps one newest generation, written by whichever machine with it mo
 so every tag has a single kind of writer. `tinycast-xcode` is written only by the Release builds in
 CI. The `agent-cache` job of every preview run builds Debug on its own tag, `tinycast-xcode-agent`,
 and that is the tag an agent machine attaches with
-`nsc create --volume cache:tinycast-xcode-agent:/Volumes/cache:50GB`. An agent machine that is
-destroyed writes its own generation back to that tag, and the next preview run refreshes it. A
-machine created within about a minute of a commit to the tag can fork an empty volume while the
-new generation is still spreading; its first build is then cold.
+`nsc create --volume cache:tinycast-xcode-agent:/Volumes/cache:50GB`. Xcode keys each compile by
+the canonical source path, so the job clones the checkout to `/Volumes/devbox/dev/pattobrien/tinycast`
+and builds there, the real path behind `~/dev/pattobrien/tinycast` on an agent machine. A build from
+any other directory reuses only the SDK module tasks. An agent machine that is destroyed writes its
+own generation back to the tag, and the next preview run refreshes it. A machine created within a
+few minutes of a commit to the tag can fork an empty volume while the new generation is still
+spreading (observed at 3 minutes, not at 5); its first build is then cold.
 
 ## Previews
 

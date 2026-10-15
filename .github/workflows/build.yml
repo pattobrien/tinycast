@@ -54,6 +54,8 @@ jobs:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: namespace-profile-mac;overrides.cache-tag=tinycast-xcode-agent
     timeout-minutes: 30
+    env:
+      AGENT_CHECKOUT: /Volumes/devbox/dev/pattobrien/tinycast
     steps:
       - uses: actions/checkout@v7
         with:
@@ -75,7 +77,14 @@ jobs:
           test -d "$XCODE_PATH"
           echo "DEVELOPER_DIR=$XCODE_PATH/Contents/Developer" >> "$GITHUB_ENV"
 
+      - name: Clone to the path an agent machine builds from
+        run: |
+          sudo mkdir -p "$(dirname "$AGENT_CHECKOUT")"
+          sudo chown -R "$(id -u)" /Volumes/devbox
+          git clone --quiet "$GITHUB_WORKSPACE" "$AGENT_CHECKOUT"
+
       - name: Build Debug into the agent cache
+        working-directory: ${{ env.AGENT_CHECKOUT }}
         env:
           COMPILATION_CACHE_ENABLE_CACHING_DEFAULT: "YES"
           VERSION: ${{ steps.meta.outputs.version }}
