@@ -40,18 +40,6 @@ jobs:
           signing-p12-base64: ${{ secrets.SIGNING_P12_BASE64 }}
           signing-p12-password: ${{ secrets.SIGNING_P12_PASSWORD }}
 
-      - name: Build Debug so the agent cache holds the dev build too
-        env:
-          VERSION: ${{ steps.meta.outputs.version }}
-          BUILD_NUMBER: ${{ github.run_number }}
-        run: |
-          LOG="$RUNNER_TEMP/xcodebuild-debug.log"
-          xcodebuild -project Tinycast.xcodeproj -scheme Tinycast -configuration Debug \
-            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
-            build 2>&1 | tee "$LOG"
-          test "${PIPESTATUS[0]}" -eq 0
-          echo "compilation cache: $(grep -c 'Cache hit' "$LOG" || true) hits, $(grep -c 'Cache miss' "$LOG" || true) misses"
-
       - name: Point the pull request at the build
         env:
           GH_TOKEN: ${{ github.token }}
@@ -61,3 +49,41 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           gh pr comment "$PR" -R "$GITHUB_REPOSITORY" --edit-last --create-if-none --body "Preview build \`Tinycast-${VERSION}\` for ${SHA:0:8} is attached to [this run](${RUN_URL}#artifacts). Install it the way FORK.md describes; it replaces the installed Tinycast and keeps its grants."
+
+  agent-cache:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: namespace-profile-mac;overrides.cache-tag=tinycast-xcode-agent
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          cache: xcode
+
+      - name: Resolve the next fork version
+        id: meta
+        run: |
+          git remote add upstream https://github.com/abue-ammar/tinycast.git
+          echo "version=$(node Scripts/fork-release.ts --next-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Select Xcode 26
+        run: |
+          XCODE_PATH="$(ls -d /Applications/Xcode_26*.app | sort -V | tail -n1)"
+          test -d "$XCODE_PATH"
+          echo "DEVELOPER_DIR=$XCODE_PATH/Contents/Developer" >> "$GITHUB_ENV"
+
+      - name: Build Debug into the agent cache
+        env:
+          COMPILATION_CACHE_ENABLE_CACHING_DEFAULT: "YES"
+          VERSION: ${{ steps.meta.outputs.version }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          LOG="$RUNNER_TEMP/xcodebuild-debug.log"
+          xcodebuild -project Tinycast.xcodeproj -scheme Tinycast -configuration Debug \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            build 2>&1 | tee "$LOG"
+          test "${PIPESTATUS[0]}" -eq 0
+          echo "compilation cache: $(grep -c 'Cache hit' "$LOG" || true) hits, $(grep -c 'Cache miss' "$LOG" || true) misses"

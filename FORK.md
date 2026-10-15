@@ -50,9 +50,16 @@ Both workflows run on the Namespace runner profile `mac`, a 6 CPU Apple silicon 
 `goldengate` image (macOS 27 with Xcode 26.6), and build through `.github/actions/build-app`. The
 action mounts the Namespace cache volume tagged `tinycast-xcode` and turns on the Xcode 26
 compilation cache, so a build after the first one compiles only what changed since the cache was
-last written. The build log prints the hit and miss counts. The same tag can be attached to any
-Namespace macOS instance with `nsc create --volume cache:tinycast-xcode:/Volumes/cache:50GB`, which
-is how an agent machine starts with the compiler cache CI already filled.
+last written. The build log prints the hit and miss counts.
+
+A cache tag keeps one newest generation, written by whichever machine with it mounted exits last,
+so every tag has a single kind of writer. `tinycast-xcode` is written only by the Release builds in
+CI. The `agent-cache` job of every preview run builds Debug on its own tag, `tinycast-xcode-agent`,
+and that is the tag an agent machine attaches with
+`nsc create --volume cache:tinycast-xcode-agent:/Volumes/cache:50GB`. An agent machine that is
+destroyed writes its own generation back to that tag, and the next preview run refreshes it. A
+machine created within about a minute of a commit to the tag can fork an empty volume while the
+new generation is still spreading; its first build is then cold.
 
 ## Previews
 
