@@ -83,6 +83,7 @@ jobs:
         run: |
           LOG="$RUNNER_TEMP/xcodebuild-debug.log"
           xcodebuild -project Tinycast.xcodeproj -scheme Tinycast -configuration Debug \
+            CODE_SIGN_IDENTITY=- \
             MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             build 2>&1 | tee "$LOG"
           test "${PIPESTATUS[0]}" -eq 0
